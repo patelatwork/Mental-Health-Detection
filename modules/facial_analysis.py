@@ -52,7 +52,7 @@ def facial_analysis_page(db_handler: MongoDBHandler = None):
             if camera_image is not None:
                 image = Image.open(camera_image)
                 
-                if st.button(" Analyze Photo", width="stretch", type="primary"):
+                if st.button(" Analyze Photo", type="primary", use_container_width=True):
                     with st.spinner("Analyzing facial expressions..."):
                         analyze_face(image, db_handler=db_handler, user_id=user_id)
         
@@ -92,7 +92,7 @@ def facial_analysis_page(db_handler: MongoDBHandler = None):
                 image = Image.open(uploaded_image)
                 
                 # Display uploaded image
-                st.image(image, caption="Uploaded Image", width="stretch")
+                st.image(image, caption="Uploaded Image", use_container_width=True)
                 
                 # Analysis options
                 col_a, col_b = st.columns(2)
@@ -104,7 +104,7 @@ def facial_analysis_page(db_handler: MongoDBHandler = None):
                 with col_b:
                     confidence_threshold = st.slider("Confidence Threshold", 0.0, 1.0, 0.5)
                 
-                if st.button(" Analyze Image", width="stretch", type="primary"):
+                if st.button(" Analyze Image", type="primary", use_container_width=True):
                     with st.spinner("Processing image..."):
                         analyze_face(image, detect_multiple, show_landmarks, confidence_threshold, db_handler=db_handler, user_id=user_id)
         

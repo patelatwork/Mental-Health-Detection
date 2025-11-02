@@ -25,6 +25,7 @@ st.set_page_config(
 from modules.text_analysis import text_analysis_page
 from modules.voice_analysis import voice_analysis_page
 from modules.facial_analysis import facial_analysis_page
+from modules.realtime_emotion import realtime_emotion_page
 from modules.dashboard import dashboard_page
 from modules.auth import show_login_page, check_authentication, logout
 from database.mongodb_handler import MongoDBHandler
@@ -70,7 +71,7 @@ def main():
         st.markdown("---")
         
         # Logout button at top
-        if st.button("Logout", width="stretch", type="secondary", use_container_width=True):
+        if st.button("Logout", type="secondary", use_container_width=True):
             logout()
             st.rerun()
         
@@ -79,10 +80,10 @@ def main():
         # Navigation Menu with icons
         selected = option_menu(
             menu_title=" Analysis Type",
-            options=["Dashboard", "Text Analysis", "Voice Analysis", "Facial Analysis"],
-            icons=["speedometer2", "chat-text", "mic", "camera"],
+            options=["Dashboard", "Text Analysis", "Voice Analysis", "Facial Analysis", "Real-Time Emotion"],
+            icons=["speedometer2", "chat-text", "mic", "camera", "camera-video"],
             menu_icon="cast",
-            default_index=["Dashboard", "Text Analysis", "Voice Analysis", "Facial Analysis"].index(st.session_state.selected_page),
+            default_index=["Dashboard", "Text Analysis", "Voice Analysis", "Facial Analysis", "Real-Time Emotion"].index(st.session_state.selected_page),
             styles={
                 "container": {"padding": "0!important", "background-color": "#ffffff"},
                 "icon": {"color": "#c4f0ed", "font-size": "20px"},
@@ -114,6 +115,7 @@ def main():
             -  Text patterns
             -  Voice emotions
             -  Facial expressions
+            - 📹 Real-time video
             """)
         
         # Privacy Notice
@@ -151,6 +153,8 @@ def main():
             voice_analysis_page(db_handler)
         elif st.session_state.selected_page == "Facial Analysis":
             facial_analysis_page(db_handler)
+        elif st.session_state.selected_page == "Real-Time Emotion":
+            realtime_emotion_page(db_handler)
     except Exception as e:
         st.error(f"⚠️ An error occurred: {str(e)}")
         st.info("Please try refreshing the page or contact support if the issue persists.")

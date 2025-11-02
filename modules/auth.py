@@ -54,7 +54,7 @@ def show_login_page(db_handler: MongoDBHandler):
         # Use the actual mental health hero image
         image_path = "assets/mental_health_hero.webp"
         if os.path.exists(image_path):
-            st.image(image_path, width="stretch")
+            st.image(image_path, use_container_width=True)
         else:
             st.error("Mental health hero image not found. Please ensure 'assets/mental_health_hero.webp' exists.")
         
@@ -75,7 +75,7 @@ def show_login_page(db_handler: MongoDBHandler):
             with st.form("login_form", clear_on_submit=False):
                 username = st.text_input("Username", key="login_username", placeholder="Enter your username")
                 password = st.text_input("Password", type="password", key="login_password", placeholder="Enter your password")
-                submit = st.form_submit_button(" Login", width="stretch", type="primary")
+                submit = st.form_submit_button(" Login", type="primary", use_container_width=True)
                 
                 if submit:
                     if username and password:
@@ -101,7 +101,7 @@ def show_login_page(db_handler: MongoDBHandler):
                 new_email = st.text_input("Email", key="signup_email", placeholder="Enter your email")
                 new_password = st.text_input("Password", type="password", key="signup_password", placeholder="Choose a password (min 6 chars)")
                 confirm_password = st.text_input("Confirm Password", type="password", key="confirm_password", placeholder="Confirm your password")
-                submit_signup = st.form_submit_button(" Create Account", width="stretch", type="primary")
+                submit_signup = st.form_submit_button(" Create Account", type="primary", use_container_width=True)
                 
                 if submit_signup:
                     if new_username and new_email and new_password and confirm_password:
