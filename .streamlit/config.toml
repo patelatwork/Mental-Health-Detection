@@ -1,0 +1,19 @@
+[global]
+developmentMode = false
+
+[server]
+port = 8501
+headless = true
+enableCORS = false
+enableXsrfProtection = false
+
+[theme]
+primaryColor = "#c4f0ed"
+backgroundColor = "#ffffff"
+secondaryBackgroundColor = "#f0fdf4"
+textColor = "#000000"
+font = "sans serif"
+
+[browser]
+serverAddress = "localhost"
+serverPort = 8501
