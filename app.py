@@ -14,6 +14,13 @@ import plotly.graph_objects as go
 import plotly.express as px
 from streamlit_option_menu import option_menu
 
+# Set page config FIRST before any other Streamlit commands
+st.set_page_config(
+    page_title="Mental Health Early Detection AI",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
+
 # Import analysis modules
 from modules.text_analysis import text_analysis_page
 from modules.voice_analysis import voice_analysis_page
@@ -22,13 +29,6 @@ from modules.dashboard import dashboard_page
 from modules.auth import show_login_page, check_authentication, logout
 from database.mongodb_handler import MongoDBHandler
 from utils.styling import apply_custom_css
-
-# Page Configuration
-st.set_page_config(
-    page_title="Mental Health Early Detection AI",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
 
 # Apply custom styling
 apply_custom_css()
@@ -48,8 +48,11 @@ def init_db():
         return None
 
 def main():
-    # Initialize database
-    db_handler = init_db()
+    # Initialize database connection (cached, only runs once)
+    if 'db_handler' not in st.session_state:
+        st.session_state.db_handler = init_db()
+    
+    db_handler = st.session_state.db_handler
     
     # Check authentication
     if not check_authentication():
@@ -60,21 +63,22 @@ def main():
     if 'selected_page' not in st.session_state:
         st.session_state.selected_page = "Dashboard"
     
-    # Sidebar
+    # Sidebar with optimized rendering
     with st.sidebar:
-        st.image("assets/logo.jpg", width=200) if st.session_state.get('show_logo', False) else None
-        
-        st.markdown(f"### Welcome, {st.session_state.get('username', 'User')}")
-        st.markdown("Mental Health Early Detection System")
+        st.markdown(f"###  Welcome, {st.session_state.get('username', 'User')}")
+        st.markdown("**Mental Health Early Detection System**")
         st.markdown("---")
         
-        # Logout button
-        if st.button("Logout", width="stretch"):
+        # Logout button at top
+        if st.button("Logout", width="stretch", type="secondary", use_container_width=True):
             logout()
+            st.rerun()
         
-        # Navigation Menu
+        st.markdown("---")
+        
+        # Navigation Menu with icons
         selected = option_menu(
-            menu_title="Analysis Type",
+            menu_title=" Analysis Type",
             options=["Dashboard", "Text Analysis", "Voice Analysis", "Facial Analysis"],
             icons=["speedometer2", "chat-text", "mic", "camera"],
             menu_icon="cast",
@@ -89,56 +93,67 @@ def main():
                     "padding": "10px",
                     "--hover-color": "#f0fdf4",
                     "border-radius": "10px",
-                    "color": "#000000"
+                    "color": "#000000",
+                    "transition": "all 0.3s ease"
                 },
-                "nav-link-selected": {"background-color": "#c4f0ed", "color": "#000000"},
+                "nav-link-selected": {"background-color": "#c4f0ed", "color": "#000000", "font-weight": "600"},
             }
         )
         
-        # Update session state
-        st.session_state.selected_page = selected
-        
         st.markdown("---")
         
-        # About Section
-        with st.expander("About"):
+        # Compact About Section
+        with st.expander("ℹ About"):
             st.markdown("""
-            **Mental Health AI** uses advanced machine learning to detect early signs of:
-            - Stress
-            - Depression
-            - Anxiety
+            **Mental Health AI** uses advanced ML to detect:
+            -  Stress & Anxiety
+            -  Depression signs
+            -  Mental wellness
             
-            Our multi-modal approach analyzes:
-            - Text patterns
-            - Voice emotions
+            **Analysis Methods:**
+            -  Text patterns
+            -  Voice emotions
+            -  Facial expressions
             """)
         
         # Privacy Notice
-        with st.expander("Privacy"):
+        with st.expander(" Privacy"):
             st.markdown("""
-            - All data is processed locally
-            - No data is stored permanently
-            - HIPAA compliant design
-            - Ethical AI practices
+             Your data is **private** and secure
+            
+             Personal dashboard & history
+            
+             HIPAA compliant design
+            
+             Ethical AI practices
             """)
         
         st.markdown("---")
         st.markdown("""
-        <div style='text-align: center; color: #000000; font-size: 12px;'>
-        Made with care for Mental Health Awareness<br>
+        <div style='text-align: center; color: #666; font-size: 11px; padding: 10px;'>
+        💚 Made with care for Mental Health Awareness<br>
         © 2025 AI for Good
         </div>
         """, unsafe_allow_html=True)
     
-    # Main Content Area - Show current page
-    if st.session_state.selected_page == "Dashboard":
-        dashboard_page(db_handler)
-    elif st.session_state.selected_page == "Text Analysis":
-        text_analysis_page(db_handler)
-    elif st.session_state.selected_page == "Voice Analysis":
-        voice_analysis_page(db_handler)
-    elif st.session_state.selected_page == "Facial Analysis":
-        facial_analysis_page(db_handler)
+    # Main Content Area - Instant page switching
+    if selected != st.session_state.selected_page:
+        st.session_state.selected_page = selected
+        st.rerun()
+    
+    # Render selected page without extra spinners
+    try:
+        if st.session_state.selected_page == "Dashboard":
+            dashboard_page(db_handler)
+        elif st.session_state.selected_page == "Text Analysis":
+            text_analysis_page(db_handler)
+        elif st.session_state.selected_page == "Voice Analysis":
+            voice_analysis_page(db_handler)
+        elif st.session_state.selected_page == "Facial Analysis":
+            facial_analysis_page(db_handler)
+    except Exception as e:
+        st.error(f"⚠️ An error occurred: {str(e)}")
+        st.info("Please try refreshing the page or contact support if the issue persists.")
 
 if __name__ == "__main__":
     main()

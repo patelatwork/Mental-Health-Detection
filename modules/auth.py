@@ -72,20 +72,22 @@ def show_login_page(db_handler: MongoDBHandler):
         
         with tab1:
             st.markdown("### Welcome Back")
-            with st.form("login_form"):
+            with st.form("login_form", clear_on_submit=False):
                 username = st.text_input("Username", key="login_username", placeholder="Enter your username")
                 password = st.text_input("Password", type="password", key="login_password", placeholder="Enter your password")
-                submit = st.form_submit_button("Login", width="stretch")
+                submit = st.form_submit_button(" Login", width="stretch", type="primary")
                 
                 if submit:
                     if username and password:
                         user = db_handler.authenticate_user(username, password)
                         if user:
+                            # Set session state immediately
                             st.session_state['authenticated'] = True
                             st.session_state['user_id'] = user['user_id']
                             st.session_state['username'] = user['username']
                             st.session_state['email'] = user['email']
-                            st.success(f"Welcome back, {username}!")
+                            st.session_state['selected_page'] = "Dashboard"
+                            # Quick rerun without waiting
                             st.rerun()
                         else:
                             st.error("Invalid username or password")
@@ -93,26 +95,26 @@ def show_login_page(db_handler: MongoDBHandler):
                         st.warning("Please enter both username and password")
         
         with tab2:
-            st.markdown("### Create Account")
-            with st.form("signup_form"):
+            st.markdown("###  Create Account")
+            with st.form("signup_form", clear_on_submit=False):
                 new_username = st.text_input("Username", key="signup_username", placeholder="Choose a username")
                 new_email = st.text_input("Email", key="signup_email", placeholder="Enter your email")
                 new_password = st.text_input("Password", type="password", key="signup_password", placeholder="Choose a password (min 6 chars)")
                 confirm_password = st.text_input("Confirm Password", type="password", key="confirm_password", placeholder="Confirm your password")
-                submit_signup = st.form_submit_button("Sign Up", width="stretch")
+                submit_signup = st.form_submit_button(" Create Account", width="stretch", type="primary")
                 
                 if submit_signup:
                     if new_username and new_email and new_password and confirm_password:
                         if new_password != confirm_password:
-                            st.error("Passwords do not match")
+                            st.error(" Passwords do not match")
                         elif len(new_password) < 6:
-                            st.error("Password must be at least 6 characters long")
+                            st.error(" Password must be at least 6 characters long")
                         else:
                             success = db_handler.create_user(new_username, new_password, new_email)
                             if success:
-                                st.success("Account created successfully! Please login.")
+                                st.success(" Account created successfully! Please login.")
                             else:
-                                st.error("Username already exists. Please choose a different username.")
+                                st.error(" Username already exists. Please choose a different username.")
                     else:
                         st.warning("Please fill in all fields")
         

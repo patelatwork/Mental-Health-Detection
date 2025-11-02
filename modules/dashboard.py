@@ -7,8 +7,23 @@ from datetime import datetime, timedelta
 from database.mongodb_handler import MongoDBHandler
 
 def dashboard_page(db_handler: MongoDBHandler = None):
-    st.markdown("# Mental Health Dashboard")
-    st.markdown(f"### Welcome back, {st.session_state.get('username', 'User')}!")
+    # Header with refresh button
+    col_title, col_refresh = st.columns([4, 1])
+    with col_title:
+        st.markdown("#  Mental Health Dashboard")
+        st.markdown(f"### Welcome back, {st.session_state.get('username', 'User')}! 👋")
+    with col_refresh:
+        if st.button(" Refresh", type="secondary", use_container_width=True):
+            # Clear cache to force refresh
+            user_id = st.session_state.get('user_id')
+            cache_key = f"dashboard_data_{user_id}"
+            cache_time_key = f"dashboard_time_{user_id}"
+            if cache_key in st.session_state:
+                del st.session_state[cache_key]
+            if cache_time_key in st.session_state:
+                del st.session_state[cache_time_key]
+            st.rerun()
+    
     st.markdown("---")
     
     # Get user ID from session
@@ -18,11 +33,32 @@ def dashboard_page(db_handler: MongoDBHandler = None):
     if 'analysis_history' not in st.session_state:
         st.session_state.analysis_history = []
     
-    # Fetch user statistics from MongoDB
-    if db_handler and user_id:
-        user_stats = db_handler.get_user_statistics(user_id)
-        user_history = db_handler.get_user_analysis_history(user_id, limit=30)
-        dashboard_data = db_handler.get_dashboard_data(user_id)
+    # Cache dashboard data in session state to avoid refetching
+    cache_key = f"dashboard_data_{user_id}"
+    cache_time_key = f"dashboard_time_{user_id}"
+    current_time = datetime.now()
+    
+    # Refresh cache every 30 seconds
+    should_refresh = (
+        cache_key not in st.session_state or 
+        cache_time_key not in st.session_state or
+        (current_time - st.session_state[cache_time_key]).total_seconds() > 30
+    )
+    
+    if should_refresh and db_handler and user_id:
+        st.session_state[cache_key] = {
+            'user_stats': db_handler.get_user_statistics(user_id),
+            'user_history': db_handler.get_user_analysis_history(user_id, limit=30),
+            'dashboard_data': db_handler.get_dashboard_data(user_id)
+        }
+        st.session_state[cache_time_key] = current_time
+    
+    # Use cached data
+    if cache_key in st.session_state:
+        cached = st.session_state[cache_key]
+        user_stats = cached['user_stats']
+        user_history = cached['user_history']
+        dashboard_data = cached['dashboard_data']
     else:
         user_stats = {'total_analyses': 0, 'recent_analyses': 0, 'analysis_by_type': {}}
         user_history = []
@@ -35,26 +71,26 @@ def dashboard_page(db_handler: MongoDBHandler = None):
     total_analyses = user_stats.get('total_analyses', 0)
     recent_analyses = user_stats.get('recent_analyses', 0)
     
-    # Calculate average wellness score from history
+    # Calculate average wellness score from history (0-10 scale)
     if user_history:
         wellness_scores = [item['data'].get('wellness_score', 0) for item in user_history if 'wellness_score' in item.get('data', {})]
-        avg_score = int(np.mean(wellness_scores)) if wellness_scores else 0
+        avg_score = round(np.mean(wellness_scores), 1) if wellness_scores else 0
     else:
         avg_score = 0
     
     with col1:
-        display_score = avg_score if avg_score > 0 else "--"
-        wellness_text = 'Good Wellness' if avg_score > 80 else 'Moderate Wellness' if avg_score > 60 else 'Start analyzing to track' if avg_score == 0 else 'Needs Attention'
+        display_score = f"{avg_score:.1f}" if avg_score > 0 else "--"
+        wellness_text = 'Excellent Wellness' if avg_score > 8 else 'Good Wellness' if avg_score > 6 else 'Moderate Wellness' if avg_score > 4 else 'Start analyzing to track' if avg_score == 0 else 'Needs Attention'
         st.markdown(f"""
         <div class="custom-card">
             <h4 style="color: #000000; margin: 0;">Overall Score</h4>
-            <h2 style="color: #000000; margin: 10px 0;">{display_score}/100</h2>
+            <h2 style="color: #000000; margin: 10px 0;">{display_score}/10</h2>
             <p style="color: #000000; margin: 0;">{wellness_text}</p>
         </div>
         """, unsafe_allow_html=True)
     
     with col2:
-        stress_level = "Low" if avg_score > 80 else "Medium" if avg_score > 60 else "Not available" if avg_score == 0 else "High"
+        stress_level = "Low" if avg_score > 7 else "Medium" if avg_score > 5 else "Not available" if avg_score == 0 else "High"
         st.markdown(f"""
         <div class="custom-card">
             <h4 style="color: #000000; margin: 0;">Stress Level</h4>
@@ -253,7 +289,7 @@ def dashboard_page(db_handler: MongoDBHandler = None):
                     </div>
                     """, unsafe_allow_html=True)
         else:
-            st.info("📊 Insights will appear here once you complete your first analysis.")
+            st.info("Insights will appear here once you complete your first analysis.")
             st.markdown("""
             <div class="custom-card">
                 <h4>What You'll See Here:</h4>

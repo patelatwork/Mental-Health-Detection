@@ -122,8 +122,8 @@ def analyze_text(text, is_chat=False, db_handler=None, user_id=None):
         sentiment_color = "#ffa500"
         sentiment_emoji = ""
     
-    # Calculate risk score (simplified)
-    risk_score = calculate_risk_score(text, sentiment_polarity)
+    # Calculate risk score (TODO: Replace with actual ML model)
+    risk_score = 50  # Placeholder - will be replaced with model prediction
     
     # Display main metrics
     col1, col2, col3, col4 = st.columns(4)
@@ -167,52 +167,14 @@ def analyze_text(text, is_chat=False, db_handler=None, user_id=None):
     st.markdown("<br>", unsafe_allow_html=True)
     
     # Detailed Analysis Sections
-    tab1, tab2, tab3, tab4 = st.tabs([" Emotion Detection", " Key Phrases", " Patterns", " Insights"])
+    tab1, tab2, tab3 = st.tabs(["📊 Emotion Detection", "🔑 Key Phrases", "📝 Patterns"])
     
     with tab1:
         st.markdown("### Detected Emotions")
         
-        # Emotion detection (simplified)
-        emotions = detect_emotions(text)
-        
-        col1, col2 = st.columns([2, 1])
-        
-        with col1:
-            # Emotion bar chart
-            fig = go.Figure(data=[go.Bar(
-                x=list(emotions.values()),
-                y=list(emotions.keys()),
-                orientation='h',
-                marker=dict(
-                    color=['#ff69b4', '#ff85c0', '#ff99cc', '#ffb6c1', '#ffc0cb'],
-                    line=dict(color='white', width=2)
-                )
-            )])
-            
-            fig.update_layout(
-                title='Emotion Intensity Distribution',
-                xaxis_title='Intensity',
-                height=350,
-                plot_bgcolor='white',
-                paper_bgcolor='white'
-            )
-            
-            st.plotly_chart(fig, width="stretch")
-        
-        with col2:
-            st.markdown("#### Dominant Emotions")
-            
-            sorted_emotions = sorted(emotions.items(), key=lambda x: x[1], reverse=True)
-            
-            for i, (emotion, score) in enumerate(sorted_emotions[:3], 1):
-                st.markdown(f"""
-                <div class="custom-card" style="margin: 10px 0;">
-                    <strong>#{i} {emotion}</strong><br>
-                    <div style="background: #f0f0f0; height: 10px; border-radius: 5px; margin-top: 5px;">
-                        <div style="background: linear-gradient(90deg, #ff69b4, #ff85c0); width: {score}%; height: 100%; border-radius: 5px;"></div>
-                    </div>
-                </div>
-                """, unsafe_allow_html=True)
+        # TODO: Replace with actual emotion detection model
+        st.info("🚧 Emotion detection will be implemented with ML model")
+        st.markdown("**Note:** This section will use a trained model for accurate emotion detection from text.")
     
     with tab2:
         st.markdown("### Key Phrases & Words")
@@ -221,27 +183,13 @@ def analyze_text(text, is_chat=False, db_handler=None, user_id=None):
         
         with col1:
             st.markdown("#### Positive Indicators")
-            positive_words = extract_key_words(text, positive=True)
-            
-            if positive_words:
-                for word, count in positive_words[:10]:
-                    st.markdown(f"""
-                    <span class="risk-badge risk-low">{word} ({count})</span>
-                    """, unsafe_allow_html=True)
-            else:
-                st.info("No significant positive words detected")
+            # TODO: Replace with actual keyword extraction model
+            st.info("🚧 Positive keyword extraction will be implemented with ML model")
         
         with col2:
             st.markdown("#### Concern Indicators")
-            negative_words = extract_key_words(text, positive=False)
-            
-            if negative_words:
-                for word, count in negative_words[:10]:
-                    st.markdown(f"""
-                    <span class="risk-badge risk-high">{word} ({count})</span>
-                    """, unsafe_allow_html=True)
-            else:
-                st.info("No significant concern indicators detected")
+            # TODO: Replace with actual keyword extraction model
+            st.info("🚧 Concern indicator extraction will be implemented with ML model")
         
         st.markdown("---")
         st.markdown("#### Most Frequent Words")
@@ -305,33 +253,6 @@ def analyze_text(text, is_chat=False, db_handler=None, user_id=None):
             st.markdown(f"**{metric}**: {value}%")
             st.progress(value / 100)
     
-    with tab4:
-        st.markdown("###  Personalized Insights & Recommendations")
-        
-        # Generate insights based on analysis
-        insights = generate_insights(text, sentiment_polarity, risk_score, emotions)
-        
-        for insight in insights:
-            st.markdown(f"""
-            <div class="custom-card">
-                <h4>{insight['title']}</h4>
-                <p style="color: #666;">{insight['content']}</p>
-            </div>
-            """, unsafe_allow_html=True)
-        
-        # Recommendations
-        st.markdown("---")
-        st.markdown("#### Recommended Actions")
-        
-        recommendations = generate_recommendations(risk_score, sentiment_polarity)
-        
-        for rec in recommendations:
-            st.markdown(f"""
-            <div style="background: #fff0f5; padding: 15px; border-radius: 8px; margin: 10px 0; border-left: 4px solid #ff69b4;">
-                <strong>{rec['priority']}</strong> - {rec['action']}
-            </div>
-            """, unsafe_allow_html=True)
-    
     # Save to session state history
     if 'analysis_history' not in st.session_state:
         st.session_state.analysis_history = []
@@ -353,112 +274,13 @@ def analyze_text(text, is_chat=False, db_handler=None, user_id=None):
             'risk_level': risk_level,
             'risk_score': int(risk_score),
             'wellness_score': int(100 - risk_score),  # Inverse of risk
-            'emotions': emotions,
+            'emotions': {},  # TODO: Will be populated by emotion detection model
             'word_count': len(text.split()),
             'is_chat': is_chat
         }
         
         success = db_handler.save_analysis(user_id, 'text_analysis', analysis_data)
         if success:
-            st.success(" Analysis saved to your history!")
+            st.success("✅ Analysis saved to your history!")
         else:
             st.warning("⚠️ Could not save to history, but analysis completed successfully.")
-
-def calculate_risk_score(text, sentiment):
-    """Calculate mental health risk score"""
-    text_lower = text.lower()
-    
-    # Risk indicators (simplified)
-    high_risk_words = ['suicide', 'hopeless', 'worthless', 'end it all', 'can\'t go on']
-    moderate_risk_words = ['depressed', 'anxious', 'stressed', 'overwhelmed', 'exhausted']
-    
-    score = 50  # Base score
-    
-    # Adjust based on sentiment
-    score -= sentiment * 20
-    
-    # Check for risk words
-    for word in high_risk_words:
-        if word in text_lower:
-            score += 15
-    
-    for word in moderate_risk_words:
-        if word in text_lower:
-            score += 5
-    
-    return min(100, max(0, score))
-
-def detect_emotions(text):
-    """Detect emotions from text"""
-    text_lower = text.lower()
-    
-    emotion_keywords = {
-        'Joy': ['happy', 'joy', 'excited', 'wonderful', 'great', 'love', 'pleased'],
-        'Sadness': ['sad', 'unhappy', 'depressed', 'down', 'miserable', 'cry'],
-        'Anxiety': ['anxious', 'worried', 'nervous', 'stressed', 'panic', 'fear'],
-        'Anger': ['angry', 'frustrated', 'annoyed', 'furious', 'irritated'],
-        'Calm': ['calm', 'peaceful', 'relaxed', 'serene', 'tranquil']
-    }
-    
-    emotions = {}
-    for emotion, keywords in emotion_keywords.items():
-        count = sum(text_lower.count(word) for word in keywords)
-        emotions[emotion] = min(100, count * 20 + np.random.randint(10, 30))
-    
-    return emotions
-
-def extract_key_words(text, positive=True):
-    """Extract positive or negative key words"""
-    positive_words = ['happy', 'joy', 'love', 'great', 'wonderful', 'excellent', 'good', 'better', 'best']
-    negative_words = ['sad', 'depressed', 'anxious', 'stressed', 'worried', 'bad', 'terrible', 'awful', 'worse']
-    
-    words = re.findall(r'\b\w+\b', text.lower())
-    target_words = positive_words if positive else negative_words
-    
-    filtered = [w for w in words if w in target_words]
-    return Counter(filtered).most_common(10)
-
-def generate_insights(text, sentiment, risk_score, emotions):
-    """Generate personalized insights"""
-    insights = []
-    
-    if sentiment < -0.3:
-        insights.append({
-            'title': ' Negative Sentiment Detected',
-            'content': 'Your text shows predominantly negative sentiment. This may indicate current stress or emotional challenges. Consider reaching out to someone you trust.'
-        })
-    elif sentiment > 0.3:
-        insights.append({
-            'title': ' Positive Mindset Observed',
-            'content': 'Your communication reflects a positive outlook. Continue maintaining these healthy thought patterns.'
-        })
-    
-    if risk_score > 70:
-        insights.append({
-            'title': ' High Concern Level',
-            'content': 'The analysis indicates elevated stress or distress. We strongly recommend speaking with a mental health professional.'
-        })
-    
-    return insights
-
-def generate_recommendations(risk_score, sentiment):
-    """Generate action recommendations"""
-    recommendations = []
-    
-    if risk_score > 60:
-        recommendations.append({
-            'priority': ' High Priority',
-            'action': 'Schedule an appointment with a mental health professional within the next week'
-        })
-    
-    recommendations.append({
-        'priority': '🟡 Medium Priority',
-        'action': 'Practice daily mindfulness or meditation for 10-15 minutes'
-    })
-    
-    recommendations.append({
-        'priority': '🟢 General Wellness',
-        'action': 'Maintain regular physical activity and healthy sleep schedule'
-    })
-    
-    return recommendations

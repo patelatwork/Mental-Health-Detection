@@ -172,7 +172,7 @@ def predict_emotion(audio_data, sr, model, scaler, encoder):
         return "Unknown", {}
 
 def calculate_wellness_score(emotion_scores, dominant_emotion):
-    """Calculate wellness score based on emotion predictions"""
+    """Calculate wellness score based on emotion predictions (0-10 scale)"""
     # Positive emotions contribute positively
     positive_emotions = ['happy', 'calm', 'neutral', 'surprise']
     negative_emotions = ['sad', 'angry', 'fear', 'disgust']
@@ -180,27 +180,40 @@ def calculate_wellness_score(emotion_scores, dominant_emotion):
     positive_score = sum(emotion_scores.get(e.capitalize(), 0) for e in positive_emotions)
     negative_score = sum(emotion_scores.get(e.capitalize(), 0) for e in negative_emotions)
     
-    # Calculate wellness (0-100 scale)
-    wellness = (positive_score / (positive_score + negative_score)) * 100 if (positive_score + negative_score) > 0 else 50
+    # Calculate wellness on 0-10 scale
+    if (positive_score + negative_score) > 0:
+        wellness = (positive_score / (positive_score + negative_score)) * 10
+    else:
+        wellness = 5.0  # Neutral baseline
     
     return round(wellness, 1)
 
 def calculate_risk_score(emotion_scores, dominant_emotion):
-    """Calculate mental health risk score"""
-    # High-risk emotions
-    risk_emotions = {
-        'sad': 1.5,
-        'fear': 1.3,
-        'disgust': 1.1,
-        'angry': 1.2
+    """Calculate mental health risk score (0-10 scale, more realistic)"""
+    # Risk weights for concerning emotions
+    risk_weights = {
+        'sad': 0.45,      # Sadness is a strong indicator
+        'fear': 0.40,     # Fear/anxiety is concerning
+        'angry': 0.30,    # Anger can indicate distress
+        'disgust': 0.20   # Disgust is less critical
     }
     
+    # Calculate weighted risk from negative emotions
     risk = 0
-    for emotion, weight in risk_emotions.items():
-        risk += emotion_scores.get(emotion.capitalize(), 0) * weight
+    for emotion, weight in risk_weights.items():
+        emotion_score = emotion_scores.get(emotion.capitalize(), 0)
+        # Only consider if emotion is reasonably present (>20%)
+        if emotion_score > 20:
+            risk += (emotion_score / 100) * weight
     
-    # Normalize to 0-100
-    risk_score = min(100, max(0, risk))
+    # Bonus risk if multiple negative emotions are present
+    negative_count = sum(1 for e in ['Sad', 'Fear', 'Angry', 'Disgust'] 
+                        if emotion_scores.get(e, 0) > 20)
+    if negative_count >= 2:
+        risk += 0.5  # Add 0.5 if multiple concerns
+    
+    # Scale to 0-10 and cap
+    risk_score = min(10.0, risk * 10)
     
     return round(risk_score, 1)
 
@@ -348,8 +361,14 @@ def analyze_audio(audio_file, duration=10, offset=0, extract_mfcc_flag=True, sho
             st.error(" Failed to load emotion recognition model. Please check model files.")
             return
         
-        # Load audio file (use 2.5 seconds with 0.6 offset as per notebook)
+        # First, get the actual duration of the original audio
         audio_bytes = audio_file.read()
+        audio_file.seek(0)  # Reset for next read
+        y_full, sr_full = librosa.load(BytesIO(audio_bytes), sr=None)
+        actual_duration = len(y_full) / sr_full
+        
+        # Now load audio file for analysis (use 2.5 seconds with 0.6 offset as per notebook)
+        audio_file.seek(0)  # Reset again
         y, sr = librosa.load(BytesIO(audio_bytes), duration=2.5, offset=0.6)
         
         st.markdown("---")
@@ -400,7 +419,7 @@ def analyze_audio(audio_file, duration=10, offset=0, extract_mfcc_flag=True, sho
         with col2:
             st.markdown(f"""
             <div class="custom-card" style="text-align: center; min-height: 180px; display: flex; flex-direction: column; justify-content: center;">
-                <h2 style="color: #4ecdc4; margin: 10px 0; font-size: 2.5rem;">{wellness_score:.1f}/100</h2>
+                <h2 style="color: #4ecdc4; margin: 10px 0; font-size: 2.5rem;">{wellness_score:.1f}/10</h2>
                 <hr style="margin: 15px 0; border: 0; border-top: 1px solid #e0e0e0;">
                 <p style="color: #666; margin: 5px 0;">Wellness Score</p>
             </div>
@@ -418,12 +437,12 @@ def analyze_audio(audio_file, duration=10, offset=0, extract_mfcc_flag=True, sho
             """, unsafe_allow_html=True)
         
         with col4:
-            risk_level = "Low" if risk_score < 40 else "Moderate" if risk_score < 70 else "High"
-            risk_class = "risk-low" if risk_score < 40 else "risk-moderate" if risk_score < 70 else "risk-high"
+            risk_level = "Low" if risk_score < 4 else "Moderate" if risk_score < 7 else "High"
+            risk_class = "risk-low" if risk_score < 4 else "risk-moderate" if risk_score < 7 else "risk-high"
             
             st.markdown(f"""
             <div class="custom-card" style="text-align: center; min-height: 180px; display: flex; flex-direction: column; justify-content: center;">
-                <h2 style="color: #ff99cc; margin: 10px 0; font-size: 2.5rem;">{risk_score:.1f}/100</h2>
+                <h2 style="color: #ff99cc; margin: 10px 0; font-size: 2.5rem;">{risk_score:.1f}/10</h2>
                 <hr style="margin: 15px 0; border: 0; border-top: 1px solid #e0e0e0;">
                 <div class="{risk_class} risk-badge" style="margin: 10px auto;">{risk_level} Risk</div>
             </div>
@@ -508,7 +527,7 @@ def analyze_audio(audio_file, duration=10, offset=0, extract_mfcc_flag=True, sho
                 """, unsafe_allow_html=True)
                 
                 st.metric("Tempo", f"{tempo:.1f} BPM")
-                st.metric("Duration", f"{len(y)/sr:.2f} sec")
+                st.metric("Duration", f"{actual_duration:.2f} sec")
             
             # Feature timeline
             st.markdown("#### Feature Evolution Over Time")
@@ -548,20 +567,33 @@ def analyze_audio(audio_file, duration=10, offset=0, extract_mfcc_flag=True, sho
                 # Prepare emotions dictionary
                 emotions_dict = {emotion.lower(): float(score) for emotion, score in emotion_scores.items()}
                 
+                # Prepare analysis data
+                analysis_data = {
+                    'emotion': dominant_emotion.lower(),
+                    'emotions': emotions_dict,
+                    'wellness_score': wellness_score,  # Now 0-10 scale
+                    'risk_score': risk_score,  # Now 0-10 scale
+                    'sentiment': 'Positive' if wellness_score > 6 else 'Neutral' if wellness_score > 4 else 'Negative',
+                    'audio_duration': f"{actual_duration:.2f}s",
+                    'tempo': float(tempo) if hasattr(tempo, 'item') else float(tempo[0]) if isinstance(tempo, np.ndarray) else float(tempo),
+                    'energy': float(energy)
+                }
+                
                 # Save analysis to database
-                db_handler.save_analysis(
+                success = db_handler.save_analysis(
                     user_id=user_id,
                     analysis_type='voice',
-                    text_content=f"Audio analysis - Duration: {len(y)/sr:.2f}s",
-                    emotions=emotions_dict,
-                    wellness_score=wellness_score,
-                    risk_score=risk_score,
-                    dominant_emotion=dominant_emotion.lower()
+                    analysis_data=analysis_data
                 )
-                # Silent save - no notification
+                if success:
+                    print(f"✓ Voice analysis saved to database for user {user_id}")
+                else:
+                    print(f"✗ Failed to save voice analysis to database")
             except Exception as e:
                 # Silent error - just log
                 print(f"Could not save to database: {str(e)}")
+                import traceback
+                traceback.print_exc()
         
         # Save to session history
         if 'analysis_history' not in st.session_state:
@@ -604,39 +636,3 @@ def plot_spectrogram(y, sr):
     plt.tight_layout()
     return fig
 
-def generate_voice_insights(emotions, tempo, energy, risk_score):
-    """Generate insights from voice analysis"""
-    insights = []
-    
-    dominant_emotion = max(emotions, key=emotions.get)
-    
-    if emotions.get('Sad', 0) > 60:
-        insights.append({
-            'title': ' Sadness Detected in Voice',
-            'content': 'Your vocal patterns show signs of sadness or low mood. Consider talking to someone about how you\'re feeling.'
-        })
-    
-    if tempo < 90:
-        insights.append({
-            'title': ' Slower Speech Rate',
-            'content': 'Slower speech can sometimes indicate fatigue or low energy. Ensure you\'re getting adequate rest.'
-        })
-    elif tempo > 140:
-        insights.append({
-            'title': ' Rapid Speech Detected',
-            'content': 'Fast speech rate may indicate anxiety or stress. Try some calming breathing exercises.'
-        })
-    
-    if risk_score > 70:
-        insights.append({
-            'title': ' Elevated Concern Level',
-            'content': 'Voice analysis suggests heightened stress or emotional distress. We recommend consulting with a mental health professional.'
-        })
-    
-    if emotions.get('Happy', 0) > 60:
-        insights.append({
-            'title': ' Positive Vocal Indicators',
-            'content': 'Your voice reflects positive emotions. Continue engaging in activities that bring you joy!'
-        })
-    
-    return insights

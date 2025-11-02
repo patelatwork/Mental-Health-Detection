@@ -1,6 +1,6 @@
 import pymongo
 from pymongo import MongoClient
-from datetime import datetime
+from datetime import datetime, timedelta
 import streamlit as st
 from typing import Dict, List, Optional
 import hashlib
@@ -82,10 +82,13 @@ class MongoDBHandler:
                 "timestamp": datetime.now(),
                 "data": analysis_data
             }
-            self.analysis_collection.insert_one(analysis_record)
+            result = self.analysis_collection.insert_one(analysis_record)
+            print(f" Saved {analysis_type} analysis to MongoDB with ID: {result.inserted_id}")
             return True
         except Exception as e:
-            st.error(f"Error saving analysis: {str(e)}")
+            print(f"✗ Error saving analysis: {str(e)}")
+            import traceback
+            traceback.print_exc()
             return False
     
     def get_user_analysis_history(self, user_id: str, limit: int = 50) -> List[Dict]:
@@ -95,6 +98,8 @@ class MongoDBHandler:
                 {"user_id": user_id}
             ).sort("timestamp", -1).limit(limit))
             
+            print(f"Retrieved {len(history)} history records for user {user_id}")
+            
             # Convert ObjectId to string and format data
             for record in history:
                 record['_id'] = str(record['_id'])
@@ -102,7 +107,9 @@ class MongoDBHandler:
             
             return history
         except Exception as e:
-            st.error(f"Error fetching history: {str(e)}")
+            print(f"✗ Error fetching history: {str(e)}")
+            import traceback
+            traceback.print_exc()
             return []
     
     def get_user_statistics(self, user_id: str) -> Dict:
@@ -128,14 +135,24 @@ class MongoDBHandler:
                 "timestamp": {"$gte": thirty_days_ago}
             })
             
+            print(f" Statistics for user {user_id}:")
+            print(f"   Total: {total_analyses}, Recent (30d): {recent_analyses}")
+            print(f"   By type: {analysis_counts}")
+            
             return {
                 "total_analyses": total_analyses,
                 "recent_analyses": recent_analyses,
                 "analysis_by_type": {item['_id']: item['count'] for item in analysis_counts}
             }
         except Exception as e:
-            st.error(f"Error fetching statistics: {str(e)}")
-            return {}
+            print(f"Error fetching statistics: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            return {
+                "total_analyses": 0,
+                "recent_analyses": 0,
+                "analysis_by_type": {}
+            }
     
     def save_dashboard_data(self, user_id: str, dashboard_data: Dict) -> bool:
         """Save or update dashboard data for a user"""
@@ -169,5 +186,3 @@ class MongoDBHandler:
         """Close MongoDB connection"""
         if self.client:
             self.client.close()
-
-from datetime import timedelta
