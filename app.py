@@ -55,8 +55,8 @@ def main():
     
     db_handler = st.session_state.db_handler
     
-    # Check authentication
-    if not check_authentication():
+    # Check authentication (will restore from cookie if exists)
+    if not check_authentication(db_handler):
         show_login_page(db_handler)
         return
     
@@ -72,7 +72,7 @@ def main():
         
         # Logout button at top
         if st.button("Logout", type="secondary", use_container_width=True):
-            logout()
+            logout(db_handler)
             st.rerun()
         
         st.markdown("---")

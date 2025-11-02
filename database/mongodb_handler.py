@@ -4,6 +4,8 @@ from datetime import datetime, timedelta
 import streamlit as st
 from typing import Dict, List, Optional
 import hashlib
+import secrets
+import uuid
 
 class MongoDBHandler:
     def __init__(self, connection_string: str = None):
@@ -18,10 +20,13 @@ class MongoDBHandler:
             self.users_collection = self.db['users']
             self.analysis_collection = self.db['analysis_history']
             self.dashboard_collection = self.db['dashboard_data']
+            self.sessions_collection = self.db['sessions']
             
             # Create indexes for better performance
             self.users_collection.create_index("username", unique=True)
             self.analysis_collection.create_index([("user_id", 1), ("timestamp", -1)])
+            self.sessions_collection.create_index("session_token", unique=True)
+            self.sessions_collection.create_index("expires_at", expireAfterSeconds=0)  # Auto-delete expired sessions
             
         except Exception as e:
             st.error(f"Failed to connect to MongoDB: {str(e)}")
@@ -72,6 +77,74 @@ class MongoDBHandler:
         except Exception as e:
             st.error(f"Authentication error: {str(e)}")
             return None
+    
+    def create_session(self, user_id: str, username: str, email: str, expiry_days: int = 30) -> str:
+        """Create a new session and return session token"""
+        try:
+            # Generate a secure random session token
+            session_token = secrets.token_urlsafe(32)
+            
+            # Calculate expiry time
+            expires_at = datetime.now() + timedelta(days=expiry_days)
+            
+            session_data = {
+                "session_token": session_token,
+                "user_id": user_id,
+                "username": username,
+                "email": email,
+                "created_at": datetime.now(),
+                "expires_at": expires_at,
+                "last_accessed": datetime.now()
+            }
+            
+            self.sessions_collection.insert_one(session_data)
+            return session_token
+        except Exception as e:
+            print(f"Error creating session: {str(e)}")
+            return None
+    
+    def get_session(self, session_token: str) -> Optional[Dict]:
+        """Retrieve session data by token"""
+        try:
+            session = self.sessions_collection.find_one({
+                "session_token": session_token,
+                "expires_at": {"$gt": datetime.now()}  # Only get non-expired sessions
+            })
+            
+            if session:
+                # Update last accessed time
+                self.sessions_collection.update_one(
+                    {"session_token": session_token},
+                    {"$set": {"last_accessed": datetime.now()}}
+                )
+                
+                return {
+                    "user_id": session["user_id"],
+                    "username": session["username"],
+                    "email": session["email"]
+                }
+            return None
+        except Exception as e:
+            print(f"Error retrieving session: {str(e)}")
+            return None
+    
+    def delete_session(self, session_token: str) -> bool:
+        """Delete a session (logout)"""
+        try:
+            result = self.sessions_collection.delete_one({"session_token": session_token})
+            return result.deleted_count > 0
+        except Exception as e:
+            print(f"Error deleting session: {str(e)}")
+            return False
+    
+    def delete_user_sessions(self, user_id: str) -> bool:
+        """Delete all sessions for a user"""
+        try:
+            self.sessions_collection.delete_many({"user_id": user_id})
+            return True
+        except Exception as e:
+            print(f"Error deleting user sessions: {str(e)}")
+            return False
     
     def save_analysis(self, user_id: str, analysis_type: str, analysis_data: Dict) -> bool:
         """Save analysis data for a user"""

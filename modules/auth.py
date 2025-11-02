@@ -1,9 +1,107 @@
 import streamlit as st
 from database.mongodb_handler import MongoDBHandler
 import os
+import streamlit.components.v1 as components
+
+def set_session_cookie(session_token: str):
+    """Set session token in browser localStorage using JavaScript"""
+    components.html(
+        f"""
+        <script>
+            localStorage.setItem('mental_health_session', '{session_token}');
+            console.log('Session token saved to localStorage');
+        </script>
+        """,
+        height=0,
+    )
+
+def get_session_cookie():
+    """Get session token from browser localStorage using JavaScript"""
+    # This will inject JavaScript that reads from localStorage and sets a query param
+    session_token = st.query_params.get("session_token", None)
+    
+    if not session_token:
+        # Try to get from localStorage via query param on first load
+        components.html(
+            """
+            <script>
+                const token = localStorage.getItem('mental_health_session');
+                if (token && !window.location.search.includes('session_token')) {
+                    const url = new URL(window.location);
+                    url.searchParams.set('session_token', token);
+                    window.location.href = url.toString();
+                }
+            </script>
+            """,
+            height=0,
+        )
+    
+    return session_token
+
+def clear_session_cookie():
+    """Clear session token from browser localStorage"""
+    components.html(
+        """
+        <script>
+            localStorage.removeItem('mental_health_session');
+            console.log('Session token removed from localStorage');
+        </script>
+        """,
+        height=0,
+    )
+
+def init_session_from_cookie(db_handler: MongoDBHandler):
+    """Initialize session from localStorage if exists"""
+    if db_handler is None:
+        print("Debug: db_handler is None")
+        return False
+    
+    # Skip if already authenticated in this session
+    if st.session_state.get('authenticated', False):
+        print("Debug: Already authenticated in session state")
+        return True
+    
+    try:
+        print("Debug: Getting session token from localStorage...")
+        session_token = get_session_cookie()
+        print(f"Debug: Session token: {session_token[:20] if session_token else 'None'}...")
+        
+        if session_token:
+            # Validate session with database
+            print("Debug: Validating session with database...")
+            session_data = db_handler.get_session(session_token)
+            
+            if session_data:
+                # Restore session state
+                st.session_state['authenticated'] = True
+                st.session_state['user_id'] = session_data['user_id']
+                st.session_state['username'] = session_data['username']
+                st.session_state['email'] = session_data['email']
+                st.session_state['session_token'] = session_token
+                print(f"✓ Session restored for user: {session_data['username']}")
+                st.rerun()  # Force rerun to update UI
+                return True
+            else:
+                # Invalid or expired session, remove from localStorage
+                print("Debug: Session invalid or expired")
+                clear_session_cookie()
+                # Clear query param
+                if "session_token" in st.query_params:
+                    del st.query_params["session_token"]
+                return False
+    except Exception as e:
+        print(f"Error initializing session from localStorage: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return False
+    
+    print("Debug: No session token found")
+    return False
+
 
 def show_login_page(db_handler: MongoDBHandler):
     """Display login/signup page"""
+    
     st.markdown("""
         <style>
         .auth-container {
@@ -81,14 +179,36 @@ def show_login_page(db_handler: MongoDBHandler):
                     if username and password:
                         user = db_handler.authenticate_user(username, password)
                         if user:
-                            # Set session state immediately
-                            st.session_state['authenticated'] = True
-                            st.session_state['user_id'] = user['user_id']
-                            st.session_state['username'] = user['username']
-                            st.session_state['email'] = user['email']
-                            st.session_state['selected_page'] = "Dashboard"
-                            # Quick rerun without waiting
-                            st.rerun()
+                            # Create server-side session
+                            session_token = db_handler.create_session(
+                                user['user_id'],
+                                user['username'],
+                                user['email'],
+                                expiry_days=30
+                            )
+                            
+                            if session_token:
+                                # Save session token to localStorage
+                                set_session_cookie(session_token)
+                                
+                                # Also set in query params for immediate use
+                                st.query_params["session_token"] = session_token
+                                
+                                # Set session state
+                                st.session_state['authenticated'] = True
+                                st.session_state['user_id'] = user['user_id']
+                                st.session_state['username'] = user['username']
+                                st.session_state['email'] = user['email']
+                                st.session_state['session_token'] = session_token
+                                st.session_state['selected_page'] = "Dashboard"
+                                
+                                print(f"✓ Session created for user: {user['username']}")
+                                print(f"✓ Token saved to localStorage: {session_token[:20]}...")
+                                
+                                st.success("Login successful!")
+                                st.rerun()
+                            else:
+                                st.error("Failed to create session. Please try again.")
                         else:
                             st.error("Invalid username or password")
                     else:
@@ -120,14 +240,40 @@ def show_login_page(db_handler: MongoDBHandler):
         
         st.markdown('</div>', unsafe_allow_html=True)
 
-def check_authentication():
+def check_authentication(db_handler: MongoDBHandler = None):
     """Check if user is authenticated"""
-    return st.session_state.get('authenticated', False)
+    # First check session state
+    if st.session_state.get('authenticated', False):
+        return True
+    
+    # If not in session state, try to restore from cookie
+    if db_handler:
+        return init_session_from_cookie(db_handler)
+    
+    return False
 
-def logout():
-    """Logout user"""
+def logout(db_handler: MongoDBHandler = None):
+    """Logout user - clear session and localStorage"""
+    try:
+        # Delete server-side session if exists
+        if db_handler and 'session_token' in st.session_state:
+            session_token = st.session_state.get('session_token')
+            if session_token:
+                db_handler.delete_session(session_token)
+        
+        # Clear localStorage
+        clear_session_cookie()
+        
+        # Clear query param
+        if "session_token" in st.query_params:
+            del st.query_params["session_token"]
+    except Exception as e:
+        print(f"Error during logout: {str(e)}")
+    
+    # Clear session state
     st.session_state['authenticated'] = False
     st.session_state['user_id'] = None
     st.session_state['username'] = None
     st.session_state['email'] = None
+    st.session_state['session_token'] = None
     st.rerun()
