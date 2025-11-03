@@ -241,8 +241,8 @@ def show_login_page(db_handler: MongoDBHandler):
                             else:
                                 st.error("Failed to create session. Please try again.")
                         else:
-                            st.error("❌ Invalid username or password")
-                            st.info("💡 **Tip:** If MongoDB is not running, use **Demo Mode** button above to continue without login.")
+                            st.error(" Invalid username or password")
+                            st.info(" **Tip:** If MongoDB is not running, use **Demo Mode** button above to continue without login.")
                     else:
                         st.warning("Please enter both username and password")
         
@@ -268,8 +268,8 @@ def show_login_page(db_handler: MongoDBHandler):
                             elif success is False:
                                 st.error(" Username already exists. Please choose a different username.")
                             else:
-                                st.error("❌ Failed to create account. Database may be unavailable.")
-                                st.info("💡 **Tip:** Use **Demo Mode** button above to continue without creating an account.")
+                                st.error(" Failed to create account. Database may be unavailable.")
+                                st.info(" **Tip:** Use **Demo Mode** button above to continue without creating an account.")
                     else:
                         st.warning("Please fill in all fields")
 
