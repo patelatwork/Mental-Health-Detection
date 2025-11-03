@@ -17,3 +17,11 @@ font = "sans serif"
 [browser]
 serverAddress = "localhost"
 serverPort = 8501
+
+[logger]
+level = "error"
+messageFormat = "%(message)s"
+
+[runner]
+fastReruns = true
+magicEnabled = true

@@ -266,7 +266,7 @@ def voice_analysis_page(db_handler: MongoDBHandler = None):
                     show_spectrogram_rec = st.checkbox("Show Spectrogram", value=True, key="spec_rec")
                 
                 # Analyze button
-                if st.button("Analyze Recording", width="stretch", type="primary", key="analyze_rec"):
+                if st.button("Analyze Recording", use_container_width=True, type="primary", key="analyze_rec"):
                     with st.spinner(" Analyzing your voice..."):
                         # Process the recorded audio
                         analyze_audio(recorded_audio, duration=10, offset=0, 
@@ -319,7 +319,7 @@ def voice_analysis_page(db_handler: MongoDBHandler = None):
                     extract_mfcc = st.checkbox("Extract MFCC Features", value=True, key="mfcc_upload")
                     show_spectrogram = st.checkbox("Show Spectrogram", value=True, key="spec_upload")
                 
-                if st.button(" Analyze Audio", width="stretch", type="primary", key="analyze_upload"):
+                if st.button(" Analyze Audio", use_container_width=True, type="primary", key="analyze_upload"):
                     with st.spinner("Processing audio file..."):
                         # Get db_handler from the parent scope
                         analyze_audio(uploaded_audio, duration, offset, extract_mfcc, show_spectrogram, db_handler)
