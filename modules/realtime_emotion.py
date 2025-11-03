@@ -45,7 +45,7 @@ def load_emotion_detection_model():
         model.load_weights('Models/emotion_model.h5')
         
         # Load Haar Cascade for face detection
-        face_cascade = cv2.CascadeClassifier('Models/haarcascade_frontalface_default.xml')
+        face_cascade = cv2.CascadeClassifier('Models/efficient-v2.xml')
         
         return model, face_cascade
     except Exception as e:
@@ -101,7 +101,7 @@ def calculate_risk_score(emotion_counts, total_frames):
     return round(risk_score, 1)
 
 def realtime_emotion_page(db_handler: MongoDBHandler = None):
-    st.markdown("# 📹 Real-Time Emotion Detection")
+    st.markdown("#  Real-Time Emotion Detection")
     st.markdown("### Live facial emotion analysis using your webcam")
     st.markdown("---")
     
@@ -112,11 +112,11 @@ def realtime_emotion_page(db_handler: MongoDBHandler = None):
     model, face_cascade = load_emotion_detection_model()
     
     if model is None or face_cascade is None:
-        st.error("⚠️ Failed to load emotion detection model. Please ensure model files are in the Models folder:")
+        st.error(" Failed to load emotion detection model. Please ensure model files are in the Models folder:")
         st.info("""
         Required files:
         - `Models/emotion_model.h5`
-        - `Models/haarcascade_frontalface_default.xml`
+        - `Models/efficient-v2.xml`
         """)
         return
     
@@ -146,7 +146,7 @@ def realtime_emotion_page(db_handler: MongoDBHandler = None):
     
     with col1:
         st.info("""
-        📌 **Instructions:**
+         **Instructions:**
         - Click "Start Webcam" to begin emotion detection
         - Your webcam will activate and detect emotions in real-time
         - The system will track your emotions over the session
@@ -157,7 +157,7 @@ def realtime_emotion_page(db_handler: MongoDBHandler = None):
     with col2:
         st.markdown("""
         <div class="custom-card">
-            <h4>🎭 Detectable Emotions</h4>
+            <h4> Detectable Emotions</h4>
             <ul style="font-size: 13px; line-height: 2;">
                 <li>😊 Happy</li>
                 <li>😢 Sad</li>
@@ -176,10 +176,10 @@ def realtime_emotion_page(db_handler: MongoDBHandler = None):
     col_btn1, col_btn2, col_btn3 = st.columns([1, 1, 2])
     
     with col_btn1:
-        start_btn = st.button("🎥 Start Webcam", type="primary", use_container_width=True)
+        start_btn = st.button(" Start Webcam", type="primary", use_container_width=True)
     
     with col_btn2:
-        stop_btn = st.button("⏹️ Stop & Analyze", type="secondary", use_container_width=True)
+        stop_btn = st.button(" Stop & Analyze", type="secondary", use_container_width=True)
     
     # Initialize session state
     if 'camera_running' not in st.session_state:
@@ -209,7 +209,7 @@ def realtime_emotion_page(db_handler: MongoDBHandler = None):
     
     # Camera display and detection
     if st.session_state.camera_running:
-        st.markdown("### 📹 Live Feed")
+        st.markdown("###  Live Feed")
         
         # Placeholder for video and metrics
         video_placeholder = st.empty()
@@ -219,7 +219,7 @@ def realtime_emotion_page(db_handler: MongoDBHandler = None):
         cap = cv2.VideoCapture(0)
         
         if not cap.isOpened():
-            st.error("❌ Could not access webcam. Please check your camera permissions.")
+            st.error(" Could not access webcam. Please check your camera permissions.")
             st.session_state.camera_running = False
             return
         
@@ -230,7 +230,7 @@ def realtime_emotion_page(db_handler: MongoDBHandler = None):
                 ret, frame = cap.read()
                 
                 if not ret:
-                    st.warning("⚠️ Failed to capture frame from webcam")
+                    st.warning(" Failed to capture frame from webcam")
                     break
                 
                 # Convert to grayscale for face detection
@@ -326,7 +326,7 @@ def display_analysis_results(emotion_log, emotion_counts, emotion_emoji, db_hand
     """Display comprehensive analysis of the emotion detection session"""
     
     st.markdown("---")
-    st.markdown("## 📊 Session Analysis Results")
+    st.markdown("##  Session Analysis Results")
     
     total_frames = len(emotion_log)
     
@@ -397,7 +397,7 @@ def display_analysis_results(emotion_log, emotion_counts, emotion_emoji, db_hand
     st.markdown("<br>", unsafe_allow_html=True)
     
     # Detailed Analysis Tabs
-    tab1, tab2, tab3 = st.tabs(["📊 Emotion Distribution", "📈 Timeline", "📋 Session Details"])
+    tab1, tab2, tab3 = st.tabs([" Emotion Distribution", " Timeline", " Session Details"])
     
     with tab1:
         col1, col2 = st.columns([2, 1])
@@ -427,7 +427,7 @@ def display_analysis_results(emotion_log, emotion_counts, emotion_emoji, db_hand
             st.plotly_chart(fig, use_container_width=True)
         
         with col2:
-            st.markdown("### 🏆 Top 3 Emotions")
+            st.markdown("###  Top 3 Emotions")
             sorted_emotions = sorted(emotion_counts.items(), key=lambda x: x[1], reverse=True)
             
             for i, (emotion, count) in enumerate(sorted_emotions[:3], 1):
@@ -515,7 +515,7 @@ def display_analysis_results(emotion_log, emotion_counts, emotion_emoji, db_hand
         col1, col2 = st.columns(2)
         
         with col1:
-            st.markdown("### 📊 Session Statistics")
+            st.markdown("###  Session Statistics")
             st.markdown(f"""
             <div class="custom-card">
                 <p><strong>Total Frames Analyzed:</strong> {total_frames}</p>
@@ -527,7 +527,7 @@ def display_analysis_results(emotion_log, emotion_counts, emotion_emoji, db_hand
             """, unsafe_allow_html=True)
         
         with col2:
-            st.markdown("### 🎯 Recommendations")
+            st.markdown("###  Recommendations")
             
             if risk_score >= 7:
                 st.error("""
@@ -577,22 +577,22 @@ def display_analysis_results(emotion_log, emotion_counts, emotion_emoji, db_hand
             )
             
             if success:
-                st.success("✅ Session results saved to your dashboard!")
+                st.success(" Session results saved to your dashboard!")
             else:
-                st.warning("⚠️ Could not save results to database")
+                st.warning(" Could not save results to database")
         except Exception as e:
             print(f"Database error: {str(e)}")
     
     # Download button for emotion log
     st.markdown("---")
-    st.markdown("### 💾 Export Session Data")
+    st.markdown("###  Export Session Data")
     
     # Create CSV
     df = pd.DataFrame(emotion_log)
     csv = df.to_csv(index=False)
     
     st.download_button(
-        label="📥 Download Emotion Log (CSV)",
+        label=" Download Emotion Log (CSV)",
         data=csv,
         file_name=f"emotion_session_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
         mime="text/csv",

@@ -5,25 +5,153 @@ import plotly.graph_objects as go
 import plotly.express as px
 from datetime import datetime, timedelta
 from database.mongodb_handler import MongoDBHandler
+import base64
+import os
 
 def dashboard_page(db_handler: MongoDBHandler = None):
-    # Header with refresh button
-    col_title, col_refresh = st.columns([4, 1])
-    with col_title:
-        st.markdown("#  Mental Health Dashboard")
-        st.markdown(f"### Welcome back, {st.session_state.get('username', 'User')}! 👋")
-    with col_refresh:
-        if st.button(" Refresh", type="secondary", use_container_width=True):
-            # Clear cache to force refresh
-            user_id = st.session_state.get('user_id')
-            cache_key = f"dashboard_data_{user_id}"
-            cache_time_key = f"dashboard_time_{user_id}"
-            if cache_key in st.session_state:
-                del st.session_state[cache_key]
-            if cache_time_key in st.session_state:
-                del st.session_state[cache_time_key]
-            st.rerun()
+    # Load and encode the cat frame images (1.png to 6.png)
+    assets_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "assets")
+    cat_frames = []
     
+    try:
+        for i in range(1, 7):
+            frame_path = os.path.join(assets_path, f"{i}.png")
+            with open(frame_path, "rb") as image_file:
+                encoded_string = base64.b64encode(image_file.read()).decode()
+                cat_frames.append(f"data:image/png;base64,{encoded_string}")
+    except Exception as e:
+        st.warning(f"Cat frame images not found in: {assets_path}")
+        cat_frames = []
+    
+    # Add animated header with running cat frames
+    if cat_frames:
+        st.markdown(f"""
+    <style>
+    .animation-container {{
+        position: relative;
+        height: 150px;
+        width: 100%;
+        margin-bottom: 20px;
+        overflow: hidden;
+        background: linear-gradient(180deg, rgba(196,240,237,0.1) 0%, rgba(255,255,255,0) 100%);
+        border-radius: 10px;
+    }}
+    
+    .running-cat {{
+        position: absolute;
+        bottom: 20px;
+        width: 150px;
+        height: 150px;
+        background-size: contain;
+        background-repeat: no-repeat;
+        background-position: center;
+        animation: moveCat 12s linear infinite;
+    }}
+    
+    @keyframes runCatFrames {{
+        0%, 16.66% {{
+            background-image: url('{cat_frames[0]}');
+        }}
+        16.67%, 33.32% {{
+            background-image: url('{cat_frames[1]}');
+        }}
+        33.33%, 49.98% {{
+            background-image: url('{cat_frames[2]}');
+        }}
+        49.99%, 66.64% {{
+            background-image: url('{cat_frames[3]}');
+        }}
+        66.65%, 83.30% {{
+            background-image: url('{cat_frames[4]}');
+        }}
+        83.31%, 100% {{
+            background-image: url('{cat_frames[5]}');
+        }}
+    }}
+    
+    .running-cat {{
+        animation: runCatFrames 0.6s infinite, moveCat 12s linear infinite;
+    }}
+    
+    @keyframes moveCat {{
+        0% {{
+            left: -150px;
+            transform: scaleX(1);
+        }}
+        48% {{
+            left: 100%;
+            transform: scaleX(1);
+        }}
+        50% {{
+            left: 100%;
+            transform: scaleX(-1);
+        }}
+        98% {{
+            left: -150px;
+            transform: scaleX(-1);
+        }}
+        100% {{
+            left: -150px;
+            transform: scaleX(1);
+        }}
+    }}
+    
+    .paw-print {{
+        position: absolute;
+        bottom: 30px;
+        font-size: 20px;
+        opacity: 0;
+        animation: fadePaw 12s linear infinite;
+    }}
+    
+    @keyframes fadePaw {{
+        0% {{
+            opacity: 0;
+            transform: scale(0.8);
+        }}
+        5% {{
+            opacity: 0.5;
+            transform: scale(1);
+        }}
+        15% {{
+            opacity: 0.3;
+        }}
+        25% {{
+            opacity: 0;
+            transform: scale(0.8);
+        }}
+        100% {{
+            opacity: 0;
+        }}
+    }}
+    </style>
+    <div class="animation-container">
+        <div class="running-cat"></div>
+        <div class="paw-print" style="left: 5%; animation-delay: 0.3s;">🐾</div>
+        <div class="paw-print" style="left: 10%; animation-delay: 0.6s;">🐾</div>
+        <div class="paw-print" style="left: 15%; animation-delay: 0.9s;">🐾</div>
+        <div class="paw-print" style="left: 20%; animation-delay: 1.2s;">🐾</div>
+        <div class="paw-print" style="left: 25%; animation-delay: 1.5s;">🐾</div>
+        <div class="paw-print" style="left: 30%; animation-delay: 1.8s;">🐾</div>
+        <div class="paw-print" style="left: 35%; animation-delay: 2.1s;">🐾</div>
+        <div class="paw-print" style="left: 40%; animation-delay: 2.4s;">🐾</div>
+        <div class="paw-print" style="left: 45%; animation-delay: 2.7s;">🐾</div>
+        <div class="paw-print" style="left: 50%; animation-delay: 3.0s;">🐾</div>
+        <div class="paw-print" style="left: 55%; animation-delay: 3.3s;">🐾</div>
+        <div class="paw-print" style="left: 60%; animation-delay: 3.6s;">🐾</div>
+        <div class="paw-print" style="left: 65%; animation-delay: 3.9s;">🐾</div>
+        <div class="paw-print" style="left: 70%; animation-delay: 4.2s;">🐾</div>
+        <div class="paw-print" style="left: 75%; animation-delay: 4.5s;">🐾</div>
+        <div class="paw-print" style="left: 80%; animation-delay: 4.8s;">🐾</div>
+        <div class="paw-print" style="left: 85%; animation-delay: 5.1s;">🐾</div>
+        <div class="paw-print" style="left: 90%; animation-delay: 5.4s;">🐾</div>
+        <div class="paw-print" style="left: 95%; animation-delay: 5.7s;">🐾</div>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # Header
+    st.markdown("#  The Listening Post")
+    st.markdown(f"### Welcome back, {st.session_state.get('username', 'User')}! 👋")
     st.markdown("---")
     
     # Get user ID from session
@@ -71,7 +199,7 @@ def dashboard_page(db_handler: MongoDBHandler = None):
     total_analyses = user_stats.get('total_analyses', 0)
     recent_analyses = user_stats.get('recent_analyses', 0)
     
-    # Calculate average wellness score from history (0-10 scale)
+    # Calculate average wellness score from history (0-100 scale)
     if user_history:
         wellness_scores = [item['data'].get('wellness_score', 0) for item in user_history if 'wellness_score' in item.get('data', {})]
         avg_score = round(np.mean(wellness_scores), 1) if wellness_scores else 0
@@ -80,17 +208,17 @@ def dashboard_page(db_handler: MongoDBHandler = None):
     
     with col1:
         display_score = f"{avg_score:.1f}" if avg_score > 0 else "--"
-        wellness_text = 'Excellent Wellness' if avg_score > 8 else 'Good Wellness' if avg_score > 6 else 'Moderate Wellness' if avg_score > 4 else 'Start analyzing to track' if avg_score == 0 else 'Needs Attention'
+        wellness_text = 'Excellent Wellness' if avg_score > 80 else 'Good Wellness' if avg_score > 60 else 'Moderate Wellness' if avg_score > 40 else 'Start analyzing to track' if avg_score == 0 else 'Needs Attention'
         st.markdown(f"""
         <div class="custom-card">
-            <h4 style="color: #000000; margin: 0;">Overall Score</h4>
-            <h2 style="color: #000000; margin: 10px 0;">{display_score}/10</h2>
+            <h4 style="color: #000000; margin: 0;">Overall Wellness Score</h4>
+            <h2 style="color: #000000; margin: 10px 0;">{display_score}/100</h2>
             <p style="color: #000000; margin: 0;">{wellness_text}</p>
         </div>
         """, unsafe_allow_html=True)
     
     with col2:
-        stress_level = "Low" if avg_score > 7 else "Medium" if avg_score > 5 else "Not available" if avg_score == 0 else "High"
+        stress_level = "Low" if avg_score > 70 else "Medium" if avg_score > 50 else "Not available" if avg_score == 0 else "High"
         st.markdown(f"""
         <div class="custom-card">
             <h4 style="color: #000000; margin: 0;">Stress Level</h4>
@@ -165,7 +293,7 @@ def dashboard_page(db_handler: MongoDBHandler = None):
                 font=dict(family='Inter, sans-serif')
             )
             
-            st.plotly_chart(fig, width="stretch")
+            st.plotly_chart(fig, use_container_width=True)
             
             # Analysis type distribution
             col1, col2 = st.columns(2)
@@ -194,7 +322,7 @@ def dashboard_page(db_handler: MongoDBHandler = None):
                         font=dict(color='#000000')
                     )
                     
-                    st.plotly_chart(fig_pie, width="stretch")
+                    st.plotly_chart(fig_pie, use_container_width=True)
                 else:
                     st.info("Perform different types of analyses to see distribution")
             
@@ -317,7 +445,7 @@ def dashboard_page(db_handler: MongoDBHandler = None):
             
             st.dataframe(
                 history_data,
-                width="stretch",
+                use_container_width=True,
                 hide_index=True,
                 column_config={
                     'Date': st.column_config.TextColumn('Date & Time'),
@@ -342,8 +470,8 @@ def dashboard_page(db_handler: MongoDBHandler = None):
         st.markdown("###  Personalized Recommendations")
         
         if user_history and len(user_history) > 0:
-            # Generate recommendations based on user's actual data
-            avg_risk = np.mean([item['data'].get('risk_score', 50) for item in user_history if 'risk_score' in item.get('data', {})])
+            # Generate recommendations based on wellness score (low score = high risk)
+            # avg_score is already calculated above from wellness_scores
             
             col1, col2 = st.columns(2)
             
@@ -357,8 +485,8 @@ def dashboard_page(db_handler: MongoDBHandler = None):
                 </div>
                 """, unsafe_allow_html=True)
                 
-                # Show recommendations based on risk level
-                if avg_risk > 70:
+                # Show recommendations based on wellness score (low score = high risk)
+                if avg_score < 40:
                     st.markdown("""
                     <div class="custom-card" style="margin-top: 20px;">
                         <h4> Action Items</h4>
@@ -372,7 +500,7 @@ def dashboard_page(db_handler: MongoDBHandler = None):
                         </div>
                     </div>
                     """, unsafe_allow_html=True)
-                elif avg_risk > 40:
+                elif avg_score < 60:
                     st.markdown("""
                     <div class="custom-card" style="margin-top: 20px;">
                         <h4> Action Items</h4>

@@ -1,6 +1,7 @@
 import os
 import warnings
 import logging
+import time
 
 # Suppress TensorFlow warnings
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
@@ -28,9 +29,7 @@ st.set_page_config(
 
 # Import analysis modules
 from modules.text_analysis import text_analysis_page
-from modules.text_emotion import text_emotion_page
 from modules.voice_analysis import voice_analysis_page
-from modules.facial_analysis import facial_analysis_page
 from modules.realtime_emotion import realtime_emotion_page
 from modules.dashboard import dashboard_page
 from modules.auth import show_login_page, check_authentication, logout
@@ -45,13 +44,17 @@ apply_custom_css()
 def init_db():
     """Initialize database connection"""
     try:
-        # You can change this connection string to your MongoDB connection
-        # For local MongoDB: "mongodb://localhost:27017/"
-        # For MongoDB Atlas: "mongodb+srv://username:password@cluster.mongodb.net/"
-        db = MongoDBHandler("mongodb://localhost:27017/")
+        # MongoDB Atlas cloud connection
+        # Using cloud database instead of local MongoDB
+        db = MongoDBHandler("mongodb+srv://aadipatel1911:MyPassword123@cluster0.lp33q.mongodb.net/carenestt?retryWrites=true&w=majority&appName=Cluster0")
         return db
     except Exception as e:
-        st.error(f"Database connection failed: {str(e)}")
+        # Check if it's a disk space error
+        error_msg = str(e)
+        if "OutOfDiskSpace" in error_msg or "available disk space" in error_msg:
+            st.warning(" MongoDB requires more disk space. Running in demo mode without database.")
+        else:
+            st.warning(f" Database connection failed: {error_msg}. Running in demo mode.")
         return None
 
 def main():
@@ -76,20 +79,13 @@ def main():
         st.markdown("**Mental Health Early Detection System**")
         st.markdown("---")
         
-        # Logout button at top
-        if st.button("Logout", type="secondary", use_container_width=True):
-            logout(db_handler)
-            st.rerun()
-        
-        st.markdown("---")
-        
         # Navigation Menu with icons
         selected = option_menu(
             menu_title=" Analysis Type",
-            options=["Dashboard", "Text Analysis", "Text Emotion", "Voice Analysis", "Facial Analysis", "Real-Time Emotion"],
-            icons=["speedometer2", "chat-text", "chat-dots", "mic", "camera", "camera-video"],
+            options=["Dashboard", "Text Analysis", "Voice Analysis", "Real-Time Emotion"],
+            icons=["speedometer2", "chat-text", "mic", "camera-video"],
             menu_icon="cast",
-            default_index=["Dashboard", "Text Analysis", "Text Emotion", "Voice Analysis", "Facial Analysis", "Real-Time Emotion"].index(st.session_state.selected_page),
+            default_index=["Dashboard", "Text Analysis", "Voice Analysis", "Real-Time Emotion"].index(st.session_state.selected_page),
             styles={
                 "container": {"padding": "0!important", "background-color": "#ffffff"},
                 "icon": {"color": "#c4f0ed", "font-size": "20px"},
@@ -112,7 +108,7 @@ def main():
         # Compact About Section
         with st.expander("ℹ About"):
             st.markdown("""
-            **Mental Health AI** uses advanced ML to detect:
+            **Care Nest** uses advanced ML to detect:
             -  Stress & Anxiety
             -  Depression signs
             -  Mental wellness
@@ -121,7 +117,7 @@ def main():
             -  Text patterns
             -  Voice emotions
             -  Facial expressions
-            - 📹 Real-time video
+            -  Real-time video
             """)
         
         # Privacy Notice
@@ -143,28 +139,31 @@ def main():
         © 2025 AI for Good
         </div>
         """, unsafe_allow_html=True)
+        
+        st.markdown("---")
+        
+        # Logout button at bottom
+        if st.button(" Logout", type="secondary", use_container_width=True):
+            logout(db_handler)
+            st.rerun()
     
-    # Main Content Area - Instant page switching
+    # Main Content Area - With smooth page transitions
     if selected != st.session_state.selected_page:
         st.session_state.selected_page = selected
         st.rerun()
     
-    # Render selected page without extra spinners
+    # Render selected page with smooth loading
     try:
         if st.session_state.selected_page == "Dashboard":
             dashboard_page(db_handler)
         elif st.session_state.selected_page == "Text Analysis":
             text_analysis_page(db_handler)
-        elif st.session_state.selected_page == "Text Emotion":
-            text_emotion_page()
         elif st.session_state.selected_page == "Voice Analysis":
             voice_analysis_page(db_handler)
-        elif st.session_state.selected_page == "Facial Analysis":
-            facial_analysis_page(db_handler)
         elif st.session_state.selected_page == "Real-Time Emotion":
             realtime_emotion_page(db_handler)
     except Exception as e:
-        st.error(f"⚠️ An error occurred: {str(e)}")
+        st.error(f" An error occurred: {str(e)}")
         st.info("Please try refreshing the page or contact support if the issue persists.")
 
 if __name__ == "__main__":

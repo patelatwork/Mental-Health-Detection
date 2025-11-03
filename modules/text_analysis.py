@@ -50,29 +50,39 @@ def text_analysis_page(db_handler: MongoDBHandler = None):
             )
         
         with col2:
-            st.markdown("""
-            <div class="custom-card">
-                <h4> Quick Stats</h4>
-                <p><strong>Characters:</strong> <span id="char-count">0</span></p>
-                <p><strong>Words:</strong> <span id="word-count">0</span></p>
-                <p><strong>Sentences:</strong> <span id="sent-count">0</span></p>
-            </div>
-            """, unsafe_allow_html=True)
-            
+            # Calculate stats dynamically
             if text_input:
                 word_count = len(text_input.split())
                 char_count = len(text_input)
                 sent_count = len(re.split(r'[.!?]+', text_input))
-                
-                st.metric("Characters", char_count)
-                st.metric("Words", word_count)
-                st.metric("Sentences", sent_count)
+            else:
+                word_count = 0
+                char_count = 0
+                sent_count = 0
+            
+            # Display dynamic stats in a compact card
+            st.markdown(f"""
+            <div class="custom-card" style="text-align: center; padding: 12px; height: 200px; display: flex; flex-direction: column; justify-content: space-around; overflow: hidden; box-sizing: border-box;">
+                <h4 style="color: #000000; margin: 0; padding: 0; font-size: 16px; font-weight: 600;"> Quick Stats</h4>
+                <div style="padding: 3px 0;">
+                    <p style="color: #666; margin: 0; padding: 0; font-size: 11px;">Characters</p>
+                    <h3 style="color: #c4f0ed; margin: 2px 0; padding: 0; font-size: 22px; font-weight: 700; line-height: 1;">{char_count}</h3>
+                </div>
+                <div style="padding: 3px 0;">
+                    <p style="color: #666; margin: 0; padding: 0; font-size: 11px;">Words</p>
+                    <h3 style="color: #c4f0ed; margin: 2px 0; padding: 0; font-size: 22px; font-weight: 700; line-height: 1;">{word_count}</h3>
+                </div>
+                <div style="padding: 3px 0;">
+                    <p style="color: #666; margin: 0; padding: 0; font-size: 11px;">Sentences</p>
+                    <h3 style="color: #c4f0ed; margin: 2px 0; padding: 0; font-size: 22px; font-weight: 700; line-height: 1;">{sent_count}</h3>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
         
         analyze_button = st.button(" Analyze Text", use_container_width=True, type="primary")
         
         if analyze_button and text_input:
-            with st.spinner("Analyzing your text..."):
-                analyze_text(text_input, db_handler=db_handler, user_id=user_id)
+            analyze_text(text_input, db_handler=db_handler, user_id=user_id)
         elif analyze_button:
             st.warning(" Please enter some text to analyze.")
     
@@ -91,8 +101,7 @@ def text_analysis_page(db_handler: MongoDBHandler = None):
                 st.success(f" File uploaded successfully: {uploaded_file.name}")
                 
                 if st.button(" Analyze Uploaded File", type="primary"):
-                    with st.spinner("Processing file..."):
-                        analyze_text(content, db_handler=db_handler, user_id=user_id)
+                    analyze_text(content, db_handler=db_handler, user_id=user_id)
             except Exception as e:
                 st.error(f" Error reading file: {str(e)}")
     
@@ -109,8 +118,7 @@ def text_analysis_page(db_handler: MongoDBHandler = None):
         
         if st.button(" Analyze Chat History", type="primary"):
             if chat_input:
-                with st.spinner("Analyzing conversation patterns..."):
-                    analyze_text(chat_input, is_chat=True, db_handler=db_handler, user_id=user_id)
+                analyze_text(chat_input, is_chat=True, db_handler=db_handler, user_id=user_id)
             else:
                 st.warning(" Please paste chat history to analyze.")
 
@@ -243,7 +251,7 @@ def analyze_text(text, is_chat=False, db_handler=None, user_id=None):
     st.markdown("<br>", unsafe_allow_html=True)
     
     # Detailed Analysis Sections
-    tab1, tab2, tab3 = st.tabs(["📊 Emotion Detection", "🔑 Key Phrases", "📝 Patterns"])
+    tab1, tab2 = st.tabs([" Emotion Detection", " Insights & Recommendations"])
     
     with tab1:
         st.markdown("### Detected Emotions")
@@ -300,119 +308,134 @@ def analyze_text(text, is_chat=False, db_handler=None, user_id=None):
         else:
             st.warning("Emotion detection model not available. Using basic sentiment analysis.")
     
+    # Calculate text statistics and keywords for tab2 use
+    words = re.findall(r'\b\w+\b', text.lower())
+    
+    # Depression-specific keyword detection
+    depression_keywords = {
+        'critical': ['suicide', 'kill myself', 'want to die', 'end it all', 'better off dead', 'no reason to live'],
+        'high': ['depressed', 'depression', 'hate myself', 'worthless', 'hopeless', 'pointless', 'useless', 'failure', 'alone', 'lonely', 'empty'],
+        'moderate': ['sad', 'unhappy', 'down', 'upset', 'stressed', 'anxious', 'worried', 'tired', 'exhausted', 'overwhelmed'],
+        'positive': ['happy', 'joy', 'excited', 'love', 'grateful', 'thankful', 'blessed', 'amazing', 'wonderful', 'great', 'good', 'better']
+    }
+    
+    text_lower = text.lower()
+    
+    found_keywords = {
+        'critical': [kw for kw in depression_keywords['critical'] if kw in text_lower],
+        'high': [kw for kw in depression_keywords['high'] if kw in text_lower],
+        'moderate': [kw for kw in depression_keywords['moderate'] if kw in text_lower],
+        'positive': [kw for kw in depression_keywords['positive'] if kw in text_lower]
+    }
+    
     with tab2:
-        st.markdown("### Key Phrases & Words")
+        st.markdown("###  Personalized Insights & Recommendations")
         
-        # Depression-specific keyword detection
-        depression_keywords = {
-            'critical': ['suicide', 'kill myself', 'want to die', 'end it all', 'better off dead', 'no reason to live'],
-            'high': ['depressed', 'depression', 'hate myself', 'worthless', 'hopeless', 'pointless', 'useless', 'failure', 'alone', 'lonely', 'empty'],
-            'moderate': ['sad', 'unhappy', 'down', 'upset', 'stressed', 'anxious', 'worried', 'tired', 'exhausted', 'overwhelmed'],
-            'positive': ['happy', 'joy', 'excited', 'love', 'grateful', 'thankful', 'blessed', 'amazing', 'wonderful', 'great', 'good', 'better']
-        }
+        # Generate personalized recommendations based on analysis
+        critical_count = len(found_keywords['critical'])
+        concern_count = len(found_keywords['high']) + len(found_keywords['moderate'])
+        positive_count = len(found_keywords['positive'])
         
-        text_lower = text.lower()
-        
-        found_keywords = {
-            'critical': [kw for kw in depression_keywords['critical'] if kw in text_lower],
-            'high': [kw for kw in depression_keywords['high'] if kw in text_lower],
-            'moderate': [kw for kw in depression_keywords['moderate'] if kw in text_lower],
-            'positive': [kw for kw in depression_keywords['positive'] if kw in text_lower]
-        }
-        
-        col1, col2 = st.columns(2)
+        # Display wellness score
+        col1, col2, col3 = st.columns(3)
         
         with col1:
-            st.markdown("#### ✅ Positive Indicators")
-            if found_keywords['positive']:
-                for keyword in found_keywords['positive']:
-                    st.markdown(f"- `{keyword}` ✓")
-            else:
-                st.info("No strong positive indicators found")
+            st.markdown(f"""
+            <div class="custom-card" style="text-align: center; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                <h4 style="color: white; margin: 0;"> Wellness Score</h4>
+                <h1 style="color: white; margin: 15px 0; font-size: 48px;">{wellness_score:.0f}</h1>
+                <p style="color: rgba(255,255,255,0.9); margin: 0;">out of 100</p>
+            </div>
+            """, unsafe_allow_html=True)
         
         with col2:
-            st.markdown("#### ⚠️ Concern Indicators")
-            
-            if found_keywords['critical']:
-                st.error("**🚨 Critical Keywords Detected:**")
-                for keyword in found_keywords['critical']:
-                    st.markdown(f"- `{keyword}` ⚠️")
-                st.warning("**Please seek immediate professional help if you're having thoughts of self-harm.**")
-            
-            if found_keywords['high']:
-                st.warning("**High-Risk Keywords:**")
-                for keyword in found_keywords['high'][:5]:  # Limit to 5
-                    st.markdown(f"- `{keyword}`")
-            
-            if found_keywords['moderate']:
-                st.info("**Moderate Concern Keywords:**")
-                for keyword in found_keywords['moderate'][:5]:  # Limit to 5
-                    st.markdown(f"- `{keyword}`")
-            
-            if not any([found_keywords['critical'], found_keywords['high'], found_keywords['moderate']]):
-                st.success("No significant concern indicators found")
+            st.markdown(f"""
+            <div class="custom-card" style="text-align: center; background: {'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)' if critical_count > 0 or concern_count > 3 else 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)'}; color: white;">
+                <h4 style="color: white; margin: 0;"> Risk Level</h4>
+                <h2 style="color: white; margin: 15px 0;">{risk_level}</h2>
+                <p style="color: rgba(255,255,255,0.9); margin: 0;">{risk_score:.0f}% concern</p>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        with col3:
+            st.markdown(f"""
+            <div class="custom-card" style="text-align: center; background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%); color: #333;">
+                <h4 style="color: #333; margin: 0;">😊 Dominant Emotion</h4>
+                <h2 style="color: #333; margin: 15px 0;">{emotion_label}</h2>
+                <p style="color: #666; margin: 0;">{emotion_confidence:.1f}% confidence</p>
+            </div>
+            """, unsafe_allow_html=True)
         
         st.markdown("---")
-        st.markdown("#### Most Frequent Words")
         
-        words = re.findall(r'\b\w+\b', text.lower())
-        word_freq = Counter([w for w in words if len(w) > 3])
+        # Personalized recommendations based on risk level
+        st.markdown("####  Recommended Actions")
         
-        if word_freq:
-            df_words = pd.DataFrame(word_freq.most_common(15), columns=['Word', 'Frequency'])
+        if critical_count > 0:
+            st.error("""
+            ** Immediate Support Needed**
             
-            fig = px.bar(df_words, x='Frequency', y='Word', orientation='h',
-                        color='Frequency', color_continuous_scale='Pinkyl')
-            fig.update_layout(height=400, plot_bgcolor='white', paper_bgcolor='white')
+            Your text contains concerning language. Please consider:
+            - **Call National Suicide Prevention Lifeline: 988** (US)
+            - Talk to a trusted friend, family member, or counselor immediately
+            - Visit your nearest emergency room if you're in immediate danger
+            - Use Crisis Text Line: Text HOME to 741741
+            """)
+        elif concern_count > 5 or risk_level in ["High", "Moderate"]:
+            st.warning("""
+            Self-Care Recommendations
             
-            st.plotly_chart(fig, width="stretch")
-    
-    with tab3:
-        st.markdown("### Communication Patterns")
+            Your text shows signs of emotional distress. Consider:
+            -  Practice mindfulness or meditation (10 minutes daily)
+            -  Reach out to a mental health professional or counselor
+            -  Physical activity: Take a 20-minute walk outdoors
+            -  Continue journaling your thoughts and feelings
+            -  Connect with supportive friends or family members
+            """)
+        elif positive_count > concern_count:
+            st.success("""
+            ** Keep Up the Positive Momentum!**
+            
+            Your text reflects positive emotions. To maintain wellness:
+            -  Set achievable goals for the week
+            -  Practice gratitude journaling
+            -  Share your positive energy with others
+            -  Maintain healthy habits: sleep, exercise, nutrition
+            -  Engage in activities you enjoy
+            """)
+        else:
+            st.info("""
+            ** Maintain Your Mental Wellness**
+            
+            Your emotional state appears balanced. Continue to:
+            -  Keep journaling regularly to track your mood
+            -  Practice stress management techniques
+            -  Stay connected with your support network
+            -  Focus on personal growth activities
+            -  Schedule regular check-ins with yourself
+            """)
         
-        # Sentence length analysis
-        sentences = [s.strip() for s in re.split(r'[.!?]+', text) if s.strip()]
-        sentence_lengths = [len(s.split()) for s in sentences]
+        st.markdown("---")
         
+        # Quick resources
+        st.markdown("####  Mental Health Resources")
         col1, col2 = st.columns(2)
         
         with col1:
-            st.metric("Average Sentence Length", f"{np.mean(sentence_lengths):.1f} words")
-            st.metric("Total Sentences", len(sentences))
-            st.metric("Longest Sentence", f"{max(sentence_lengths)} words")
+            st.markdown("""
+            **Crisis Support:**
+            -  Suicide Prevention: **988**
+            -  Crisis Text Line: Text **HOME** to **741741**
+            -  International: findahelpline.com
+            """)
         
         with col2:
-            # Sentence length distribution
-            fig = go.Figure(data=[go.Histogram(
-                x=sentence_lengths,
-                marker=dict(color='#ff69b4'),
-                nbinsx=20
-            )])
-            
-            fig.update_layout(
-                title='Sentence Length Distribution',
-                xaxis_title='Words per Sentence',
-                yaxis_title='Frequency',
-                height=250,
-                plot_bgcolor='white',
-                paper_bgcolor='white'
-            )
-            
-            st.plotly_chart(fig, width="stretch")
-        
-        # Writing style analysis
-        st.markdown("#### Writing Style Indicators")
-        
-        style_metrics = {
-            "Personal Expression": min(100, text.lower().count('i ') * 5),
-            "Question Frequency": min(100, text.count('?') * 10),
-            "Exclamation Usage": min(100, text.count('!') * 8),
-            "Descriptive Language": min(100, len([w for w in words if len(w) > 6]) * 2)
-        }
-        
-        for metric, value in style_metrics.items():
-            st.markdown(f"**{metric}**: {value}%")
-            st.progress(value / 100)
+            st.markdown("""
+            **Professional Help:**
+            -  Psychology Today: Find a Therapist
+            -  BetterHelp: Online Counseling
+            -  SAMHSA Helpline: 1-800-662-4357
+            """)
     
     # Save to session state history
     if 'analysis_history' not in st.session_state:
@@ -447,6 +470,6 @@ def analyze_text(text, is_chat=False, db_handler=None, user_id=None):
         
         success = db_handler.save_analysis(user_id, 'text_analysis', analysis_data)
         if success:
-            st.success("✅ Analysis saved to your history!")
+            st.success(" Analysis saved to your history!")
         else:
-            st.warning("⚠️ Could not save to history, but analysis completed successfully.")
+            st.warning(" Could not save to history, but analysis completed successfully.")

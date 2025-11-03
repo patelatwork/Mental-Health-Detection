@@ -102,11 +102,45 @@ def init_session_from_cookie(db_handler: MongoDBHandler):
 def show_login_page(db_handler: MongoDBHandler):
     """Display login/signup page"""
     
+    # Check if database is available
+    if db_handler is None:
+        st.error("⚠️ Database is unavailable. Please free up disk space or check MongoDB configuration.")
+        st.info("**Demo Mode:** You can continue without login to explore the app's features.")
+        
+        if st.button("🚀 Continue in Demo Mode", type="primary", use_container_width=True):
+            # Set demo session
+            st.session_state['authenticated'] = True
+            st.session_state['user_id'] = 'demo_user'
+            st.session_state['username'] = 'Demo User'
+            st.session_state['email'] = 'demo@example.com'
+            st.rerun()
+        
+        st.markdown("---")
+        st.markdown("### How to fix:")
+        st.markdown("""
+        1. **Free up disk space**: MongoDB needs at least 500MB of free space
+        2. **Stop MongoDB**: Run `net stop MongoDB` in PowerShell as Administrator
+        3. **Clean temporary files**: Delete files from `C:\\Windows\\Temp` and `%TEMP%`
+        4. **Restart MongoDB**: Run `net start MongoDB` after freeing space
+        """)
+        return
+    
     st.markdown("""
         <style>
+        /* Light background for entire page */
+        .stApp {
+            background: linear-gradient(135deg, #f5f7fa 0%, #e8eef5 100%);
+        }
+        
+        /* Reduce top padding/margin */
+        .block-container {
+            padding-top: 2rem !important;
+            padding-bottom: 2rem !important;
+        }
+        
         .auth-container {
             max-width: 500px;
-            margin: 20px auto;
+            margin: 10px auto;
             padding: 40px;
             background: white;
             border-radius: 15px;
@@ -118,7 +152,7 @@ def show_login_page(db_handler: MongoDBHandler):
             font-size: 32px;
             font-weight: bold;
             margin-bottom: 10px;
-            margin-top: 20px;
+            margin-top: 0px;
         }
         .auth-subtitle {
             text-align: center;
@@ -131,7 +165,8 @@ def show_login_page(db_handler: MongoDBHandler):
             padding: 20px;
             border-radius: 15px;
             box-shadow: 0 2px 10px rgba(0,0,0,0.08);
-            margin-bottom: 30px;
+            margin-bottom: 20px;
+            margin-top: 0px;
             overflow: hidden;
         }
         .hero-banner img {
@@ -147,7 +182,7 @@ def show_login_page(db_handler: MongoDBHandler):
     col1, col2, col3 = st.columns([1, 3, 1])
     with col2:
         st.markdown('<div class="hero-banner">', unsafe_allow_html=True)
-        st.markdown('<div class="auth-title">Mental Health AI</div>', unsafe_allow_html=True)
+        st.markdown('<div class="auth-title">Care Nest</div>', unsafe_allow_html=True)
         st.markdown('<div class="auth-subtitle">Your Personal Wellness Companion</div>', unsafe_allow_html=True)
         # Use the actual mental health hero image
         image_path = "assets/mental_health_hero.webp"
@@ -162,10 +197,6 @@ def show_login_page(db_handler: MongoDBHandler):
     col1, col2, col3 = st.columns([1, 2, 1])
     
     with col2:
-        st.markdown('<div class="auth-container">', unsafe_allow_html=True)
-        
-        
-        
         tab1, tab2 = st.tabs(["Login", "Sign Up"])
         
         with tab1:
@@ -210,7 +241,8 @@ def show_login_page(db_handler: MongoDBHandler):
                             else:
                                 st.error("Failed to create session. Please try again.")
                         else:
-                            st.error("Invalid username or password")
+                            st.error("❌ Invalid username or password")
+                            st.info("💡 **Tip:** If MongoDB is not running, use **Demo Mode** button above to continue without login.")
                     else:
                         st.warning("Please enter both username and password")
         
@@ -233,12 +265,13 @@ def show_login_page(db_handler: MongoDBHandler):
                             success = db_handler.create_user(new_username, new_password, new_email)
                             if success:
                                 st.success(" Account created successfully! Please login.")
-                            else:
+                            elif success is False:
                                 st.error(" Username already exists. Please choose a different username.")
+                            else:
+                                st.error("❌ Failed to create account. Database may be unavailable.")
+                                st.info("💡 **Tip:** Use **Demo Mode** button above to continue without creating an account.")
                     else:
                         st.warning("Please fill in all fields")
-        
-        st.markdown('</div>', unsafe_allow_html=True)
 
 def check_authentication(db_handler: MongoDBHandler = None):
     """Check if user is authenticated"""

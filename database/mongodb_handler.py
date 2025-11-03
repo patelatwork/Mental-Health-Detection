@@ -12,11 +12,11 @@ class MongoDBHandler:
         """Initialize MongoDB connection"""
         if connection_string is None:
             # Default local MongoDB connection
-            connection_string = "mongodb://localhost:27017/"
+            connection_string = "mongodb+srv://aadipatel1911:MyPassword123@cluster0.lp33q.mongodb.net/carenestt?retryWrites=true&w=majority&appName=Cluster0"
         
         try:
             self.client = MongoClient(connection_string)
-            self.db = self.client['mental_health_db']
+            self.db = self.client['carenestt']
             self.users_collection = self.db['users']
             self.analysis_collection = self.db['analysis_history']
             self.dashboard_collection = self.db['dashboard_data']
