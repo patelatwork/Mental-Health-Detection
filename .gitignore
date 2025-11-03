@@ -43,7 +43,6 @@ venv.bak/
 
 # Jupyter Notebook
 .ipynb_checkpoints
-*.ipynb
 
 # Environment variables
 .env
@@ -61,7 +60,6 @@ logs/
 *.sqlite3
 
 # MongoDB
-data/
 mongodb/
 
 # OS

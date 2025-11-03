@@ -1,0 +1,8 @@
+https://www.kaggle.com/datasets/monishakant/dataset-for-stress-analysis-in-social-media/data
+
+https://www.kaggle.com/datasets/nikhileswarkomati/suicide-watch
+
+https://huggingface.co/datasets/dair-ai/emotion
+
+Kindly refer to the Notebook folder and look at the notebook Text-analysis.ipynb
+to see the data used from the above links

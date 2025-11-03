@@ -1,0 +1,3 @@
+https://www.kaggle.com/datasets/sujaykapadnis/emotion-recognition-dataset
+
+Kindly refer to the notebook with the name facial-analysis.ipynb to check the above dataset
