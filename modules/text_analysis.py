@@ -8,6 +8,23 @@ import re
 from collections import Counter
 from datetime import datetime
 from database.mongodb_handler import MongoDBHandler
+from transformers import pipeline
+import warnings
+warnings.filterwarnings('ignore')
+
+# Load emotion detection model (cached)
+@st.cache_resource
+def load_emotion_model():
+    """Load the emotion detection model"""
+    try:
+        return pipeline(
+            "text-classification",
+            model="j-hartmann/emotion-english-distilroberta-base",
+            return_all_scores=True
+        )
+    except Exception as e:
+        st.error(f"Error loading emotion model: {str(e)}")
+        return None
 
 def text_analysis_page(db_handler: MongoDBHandler = None):
     st.markdown("#  Text Analysis")
@@ -51,7 +68,7 @@ def text_analysis_page(db_handler: MongoDBHandler = None):
                 st.metric("Words", word_count)
                 st.metric("Sentences", sent_count)
         
-        analyze_button = st.button(" Analyze Text", width="stretch", type="primary")
+        analyze_button = st.button(" Analyze Text", use_container_width=True, type="primary")
         
         if analyze_button and text_input:
             with st.spinner("Analyzing your text..."):
@@ -98,32 +115,90 @@ def text_analysis_page(db_handler: MongoDBHandler = None):
                 st.warning(" Please paste chat history to analyze.")
 
 def analyze_text(text, is_chat=False, db_handler=None, user_id=None):
-    """Perform comprehensive text analysis"""
+    """Perform comprehensive text analysis with emotion detection"""
     
     st.markdown("---")
     st.markdown("##  Analysis Results")
     
-    # Sentiment Analysis
-    blob = TextBlob(text)
-    sentiment_polarity = blob.sentiment.polarity
-    sentiment_subjectivity = blob.sentiment.subjectivity
+    # Load emotion detection model
+    emotion_classifier = load_emotion_model()
     
-    # Determine sentiment category
-    if sentiment_polarity > 0.1:
-        sentiment_label = "Positive"
-        sentiment_color = "#28a745"
-        sentiment_emoji = ""
-    elif sentiment_polarity < -0.1:
-        sentiment_label = "Negative"
-        sentiment_color = "#ff69b4"
-        sentiment_emoji = ""
+    if emotion_classifier is None:
+        st.error("Failed to load emotion detection model. Using basic analysis.")
+        emotion_results = None
     else:
-        sentiment_label = "Neutral"
-        sentiment_color = "#ffa500"
-        sentiment_emoji = ""
+        # Analyze emotions
+        with st.spinner("Detecting emotions..."):
+            emotion_results = emotion_classifier(text)[0]
+            emotion_results = sorted(emotion_results, key=lambda x: x['score'], reverse=True)
     
-    # Calculate risk score (TODO: Replace with actual ML model)
-    risk_score = 50  # Placeholder - will be replaced with model prediction
+    # Get dominant emotion
+    if emotion_results:
+        dominant_emotion = emotion_results[0]
+        emotion_label = dominant_emotion['label'].capitalize()
+        emotion_confidence = dominant_emotion['score'] * 100
+        
+        # Map emotions to colors and emojis
+        emotion_config = {
+            'joy': {'color': '#28a745', 'emoji': '😊', 'category': 'positive'},
+            'sadness': {'color': '#dc3545', 'emoji': '😢', 'category': 'negative'},
+            'anger': {'color': '#fd7e14', 'emoji': '😠', 'category': 'negative'},
+            'fear': {'color': '#ffc107', 'emoji': '😨', 'category': 'negative'},
+            'surprise': {'color': '#17a2b8', 'emoji': '😲', 'category': 'positive'},
+            'disgust': {'color': '#6c757d', 'emoji': '🤢', 'category': 'negative'},
+            'neutral': {'color': '#6f42c1', 'emoji': '😐', 'category': 'neutral'}
+        }
+        
+        config = emotion_config.get(dominant_emotion['label'], {'color': '#6c757d', 'emoji': '😐', 'category': 'neutral'})
+        emotion_color = config['color']
+        emotion_emoji = config['emoji']
+        
+        # Calculate depression risk score based on negative emotions
+        negative_weights = {
+            'sadness': 0.45,
+            'fear': 0.30,
+            'anger': 0.20,
+            'disgust': 0.15
+        }
+        
+        risk_score = 0
+        for emotion in emotion_results:
+            if emotion['label'] in negative_weights:
+                risk_score += emotion['score'] * negative_weights[emotion['label']] * 100
+        
+        risk_score = min(100, risk_score)
+        
+        # Calculate wellness score
+        positive_score = sum(e['score'] for e in emotion_results if e['label'] in ['joy', 'surprise'])
+        negative_score = sum(e['score'] for e in emotion_results if e['label'] in ['sadness', 'fear', 'anger', 'disgust'])
+        neutral_score = sum(e['score'] for e in emotion_results if e['label'] == 'neutral')
+        
+        total_score = positive_score + negative_score + neutral_score
+        if total_score > 0:
+            wellness_score = ((positive_score + 0.5 * neutral_score) / total_score) * 100
+        else:
+            wellness_score = 50
+    else:
+        # Fallback to TextBlob
+        blob = TextBlob(text)
+        sentiment_polarity = blob.sentiment.polarity
+        
+        if sentiment_polarity > 0.1:
+            emotion_label = "Positive"
+            emotion_color = "#28a745"
+            emotion_emoji = "😊"
+        elif sentiment_polarity < -0.1:
+            emotion_label = "Negative"
+            emotion_color = "#dc3545"
+            emotion_emoji = "😢"
+        else:
+            emotion_label = "Neutral"
+            emotion_color = "#6c757d"
+            emotion_emoji = "😐"
+        
+        emotion_confidence = abs(sentiment_polarity) * 100
+        risk_score = max(0, -sentiment_polarity * 100)
+        wellness_score = max(0, sentiment_polarity * 100)
     
     # Display main metrics
     col1, col2, col3, col4 = st.columns(4)
@@ -131,36 +206,37 @@ def analyze_text(text, is_chat=False, db_handler=None, user_id=None):
     with col1:
         st.markdown(f"""
         <div class="custom-card" style="text-align: center;">
-            <h1 style="font-size: 3rem; margin: 0;">{sentiment_emoji}</h1>
-            <h4 style="color: {sentiment_color}; margin: 10px 0;">{sentiment_label}</h4>
-            <p style="color: #666;">Overall Sentiment</p>
+            <h1 style="font-size: 3rem; margin: 0;">{emotion_emoji}</h1>
+            <h4 style="color: {emotion_color}; margin: 10px 0;">{emotion_label}</h4>
+            <p style="color: #666;">Dominant Emotion</p>
         </div>
         """, unsafe_allow_html=True)
     
     with col2:
         st.markdown(f"""
         <div class="custom-card" style="text-align: center;">
-            <h2 style="color: #ff69b4; margin: 10px 0;">{abs(sentiment_polarity):.2f}</h2>
-            <p style="color: #666;">Sentiment Intensity</p>
+            <h2 style="color: {emotion_color}; margin: 10px 0;">{emotion_confidence:.1f}%</h2>
+            <p style="color: #666;">Confidence</p>
         </div>
         """, unsafe_allow_html=True)
     
     with col3:
         st.markdown(f"""
         <div class="custom-card" style="text-align: center;">
-            <h2 style="color: #ff85c0; margin: 10px 0;">{sentiment_subjectivity:.2f}</h2>
-            <p style="color: #666;">Subjectivity</p>
+            <h2 style="color: #28a745; margin: 10px 0;">{wellness_score:.0f}/100</h2>
+            <p style="color: #666;">Wellness Score</p>
         </div>
         """, unsafe_allow_html=True)
     
     with col4:
-        risk_level = "Low" if risk_score < 40 else "Moderate" if risk_score < 70 else "High"
-        risk_class = "risk-low" if risk_score < 40 else "risk-moderate" if risk_score < 70 else "risk-high"
+        risk_level = "Low" if risk_score < 30 else "Moderate" if risk_score < 50 else "High" if risk_score < 70 else "Critical"
+        risk_colors = {"Low": "#28a745", "Moderate": "#ffc107", "High": "#fd7e14", "Critical": "#dc3545"}
+        risk_color = risk_colors.get(risk_level, "#6c757d")
         
         st.markdown(f"""
         <div class="custom-card" style="text-align: center;">
-            <h2 style="color: #ff99cc; margin: 10px 0;">{risk_score}/100</h2>
-            <div class="{risk_class} risk-badge">{risk_level}</div>
+            <h2 style="color: {risk_color}; margin: 10px 0;">{risk_score:.0f}/100</h2>
+            <p style="color: #666;">Depression Risk</p>
         </div>
         """, unsafe_allow_html=True)
     
@@ -172,24 +248,109 @@ def analyze_text(text, is_chat=False, db_handler=None, user_id=None):
     with tab1:
         st.markdown("### Detected Emotions")
         
-        # TODO: Replace with actual emotion detection model
-        st.info("🚧 Emotion detection will be implemented with ML model")
-        st.markdown("**Note:** This section will use a trained model for accurate emotion detection from text.")
+        if emotion_results:
+            # Display all emotions with confidence
+            st.markdown("**All Detected Emotions:**")
+            
+            for i, emotion in enumerate(emotion_results, 1):
+                label = emotion['label'].capitalize()
+                score = emotion['score'] * 100
+                
+                col_a, col_b = st.columns([3, 1])
+                with col_a:
+                    st.write(f"**{i}. {label}**")
+                    st.progress(emotion['score'])
+                with col_b:
+                    st.metric("", f"{score:.1f}%")
+            
+            st.markdown("---")
+            
+            # Emotion distribution chart
+            st.markdown("**Emotion Distribution:**")
+            
+            emotions_df = pd.DataFrame([
+                {'Emotion': e['label'].capitalize(), 'Confidence': e['score'] * 100}
+                for e in emotion_results
+            ])
+            
+            fig = px.bar(
+                emotions_df,
+                x='Emotion',
+                y='Confidence',
+                color='Emotion',
+                color_discrete_map={
+                    'Joy': '#28a745',
+                    'Sadness': '#dc3545',
+                    'Anger': '#fd7e14',
+                    'Fear': '#ffc107',
+                    'Surprise': '#17a2b8',
+                    'Disgust': '#6c757d',
+                    'Neutral': '#6f42c1'
+                },
+                text='Confidence'
+            )
+            fig.update_traces(texttemplate='%{text:.1f}%', textposition='outside')
+            fig.update_layout(
+                height=400,
+                showlegend=False,
+                yaxis_title="Confidence (%)",
+                xaxis_title="Emotion"
+            )
+            st.plotly_chart(fig, use_container_width=True)
+        else:
+            st.warning("Emotion detection model not available. Using basic sentiment analysis.")
     
     with tab2:
         st.markdown("### Key Phrases & Words")
         
+        # Depression-specific keyword detection
+        depression_keywords = {
+            'critical': ['suicide', 'kill myself', 'want to die', 'end it all', 'better off dead', 'no reason to live'],
+            'high': ['depressed', 'depression', 'hate myself', 'worthless', 'hopeless', 'pointless', 'useless', 'failure', 'alone', 'lonely', 'empty'],
+            'moderate': ['sad', 'unhappy', 'down', 'upset', 'stressed', 'anxious', 'worried', 'tired', 'exhausted', 'overwhelmed'],
+            'positive': ['happy', 'joy', 'excited', 'love', 'grateful', 'thankful', 'blessed', 'amazing', 'wonderful', 'great', 'good', 'better']
+        }
+        
+        text_lower = text.lower()
+        
+        found_keywords = {
+            'critical': [kw for kw in depression_keywords['critical'] if kw in text_lower],
+            'high': [kw for kw in depression_keywords['high'] if kw in text_lower],
+            'moderate': [kw for kw in depression_keywords['moderate'] if kw in text_lower],
+            'positive': [kw for kw in depression_keywords['positive'] if kw in text_lower]
+        }
+        
         col1, col2 = st.columns(2)
         
         with col1:
-            st.markdown("#### Positive Indicators")
-            # TODO: Replace with actual keyword extraction model
-            st.info("🚧 Positive keyword extraction will be implemented with ML model")
+            st.markdown("#### ✅ Positive Indicators")
+            if found_keywords['positive']:
+                for keyword in found_keywords['positive']:
+                    st.markdown(f"- `{keyword}` ✓")
+            else:
+                st.info("No strong positive indicators found")
         
         with col2:
-            st.markdown("#### Concern Indicators")
-            # TODO: Replace with actual keyword extraction model
-            st.info("🚧 Concern indicator extraction will be implemented with ML model")
+            st.markdown("#### ⚠️ Concern Indicators")
+            
+            if found_keywords['critical']:
+                st.error("**🚨 Critical Keywords Detected:**")
+                for keyword in found_keywords['critical']:
+                    st.markdown(f"- `{keyword}` ⚠️")
+                st.warning("**Please seek immediate professional help if you're having thoughts of self-harm.**")
+            
+            if found_keywords['high']:
+                st.warning("**High-Risk Keywords:**")
+                for keyword in found_keywords['high'][:5]:  # Limit to 5
+                    st.markdown(f"- `{keyword}`")
+            
+            if found_keywords['moderate']:
+                st.info("**Moderate Concern Keywords:**")
+                for keyword in found_keywords['moderate'][:5]:  # Limit to 5
+                    st.markdown(f"- `{keyword}`")
+            
+            if not any([found_keywords['critical'], found_keywords['high'], found_keywords['moderate']]):
+                st.success("No significant concern indicators found")
         
         st.markdown("---")
         st.markdown("#### Most Frequent Words")
@@ -260,23 +421,28 @@ def analyze_text(text, is_chat=False, db_handler=None, user_id=None):
     st.session_state.analysis_history.append({
         'timestamp': datetime.now(),
         'type': 'Text',
-        'sentiment': sentiment_label,
+        'emotion': emotion_label,
         'risk_score': risk_score
     })
     
     # Save to MongoDB
     if db_handler and user_id:
+        # Build emotions dict
+        emotions_dict = {}
+        if emotion_results:
+            emotions_dict = {e['label']: float(e['score']) for e in emotion_results}
+        
         analysis_data = {
             'text': text[:500],  # Save first 500 chars for privacy
-            'sentiment': sentiment_label,
-            'sentiment_polarity': float(sentiment_polarity),
-            'sentiment_subjectivity': float(sentiment_subjectivity),
+            'dominant_emotion': emotion_label,
+            'emotion_confidence': float(emotion_confidence),
+            'emotions': emotions_dict,
             'risk_level': risk_level,
-            'risk_score': int(risk_score),
-            'wellness_score': int(100 - risk_score),  # Inverse of risk
-            'emotions': {},  # TODO: Will be populated by emotion detection model
+            'risk_score': float(risk_score),
+            'wellness_score': float(wellness_score),
             'word_count': len(text.split()),
-            'is_chat': is_chat
+            'is_chat': is_chat,
+            'keywords_found': found_keywords
         }
         
         success = db_handler.save_analysis(user_id, 'text_analysis', analysis_data)

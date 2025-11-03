@@ -1,10 +1,15 @@
 import os
 import warnings
+import logging
 
 # Suppress TensorFlow warnings
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
 warnings.filterwarnings('ignore')
+
+# Suppress torch warnings and errors
+logging.getLogger('torch').setLevel(logging.ERROR)
+logging.getLogger('streamlit.watcher.local_sources_watcher').setLevel(logging.ERROR)
 
 import streamlit as st
 import numpy as np
@@ -23,6 +28,7 @@ st.set_page_config(
 
 # Import analysis modules
 from modules.text_analysis import text_analysis_page
+from modules.text_emotion import text_emotion_page
 from modules.voice_analysis import voice_analysis_page
 from modules.facial_analysis import facial_analysis_page
 from modules.realtime_emotion import realtime_emotion_page
@@ -80,10 +86,10 @@ def main():
         # Navigation Menu with icons
         selected = option_menu(
             menu_title=" Analysis Type",
-            options=["Dashboard", "Text Analysis", "Voice Analysis", "Facial Analysis", "Real-Time Emotion"],
-            icons=["speedometer2", "chat-text", "mic", "camera", "camera-video"],
+            options=["Dashboard", "Text Analysis", "Text Emotion", "Voice Analysis", "Facial Analysis", "Real-Time Emotion"],
+            icons=["speedometer2", "chat-text", "chat-dots", "mic", "camera", "camera-video"],
             menu_icon="cast",
-            default_index=["Dashboard", "Text Analysis", "Voice Analysis", "Facial Analysis", "Real-Time Emotion"].index(st.session_state.selected_page),
+            default_index=["Dashboard", "Text Analysis", "Text Emotion", "Voice Analysis", "Facial Analysis", "Real-Time Emotion"].index(st.session_state.selected_page),
             styles={
                 "container": {"padding": "0!important", "background-color": "#ffffff"},
                 "icon": {"color": "#c4f0ed", "font-size": "20px"},
@@ -149,6 +155,8 @@ def main():
             dashboard_page(db_handler)
         elif st.session_state.selected_page == "Text Analysis":
             text_analysis_page(db_handler)
+        elif st.session_state.selected_page == "Text Emotion":
+            text_emotion_page()
         elif st.session_state.selected_page == "Voice Analysis":
             voice_analysis_page(db_handler)
         elif st.session_state.selected_page == "Facial Analysis":
